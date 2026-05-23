@@ -32,21 +32,18 @@ fi
 # if on bash add sourcing shstart.sh to .bashrc if it doesn't already exist
 if [ -f "$HOME/.bashrc" ]; then
     if ! grep -q "source $HOME/.dotfiles/shstart.sh" "$HOME/.bashrc"; then
-        echo "source $HOME/.dotfiles/shstart.sh" >> "$HOME/.bashrc"
+        printf "\nsource %s/.dotfiles/shstart.sh\n" "$HOME" >> "$HOME/.bashrc"
     fi
 
     # if on alpine ash add sourcing shstart.sh to .profile if it doesn't already exist
 elif [ -f "$HOME/.profile" ]; then
     if ! grep -q "export ENV='$HOME/.dotfiles/shstart.sh'" "$HOME/.profile"; then
-        echo "export ENV='$HOME/.dotfiles/shstart.sh'" >> "$HOME/.profile"
+        printf "\nexport ENV='%s/.dotfiles/shstart.sh'\n" "$HOME" >> "$HOME/.profile"
     fi
-fi 
-
-
-# SOURCE DOTFILES
-source "$HOME/.dotfiles/shstart.sh"
+fi
 
 
 # COMPLETE
 echo "Dotfiles installed"
-echo "type 'dot' to get started"
+echo " * start a new shell"
+echo " * then type 'dot' to get started"
