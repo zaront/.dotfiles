@@ -12,13 +12,13 @@ if [ -d "$HOME/.dotfiles" ]; then
 elif [ -x "$(command -v git)" ]; then
     git clone https://github.com/zaron/dotfiles.git "$HOME/.dotfiles"
 
-# download the dotfiles with wget if its installed
-elif [ -x "$(command -v wget)" ]; then
-    mkdir -p "$HOME/.dotfiles" && wget -qO- https://github.com | tar -xz -C "$HOME/.dotfiles" --strip-components=1
-
 # download the dotfiles with curl if its installed
 elif [ -x "$(command -v curl)" ]; then
-    mkdir -p "$HOME/.dotfiles" && curl -L https://github.com | tar -xz -C "$HOME/.dotfiles" --strip-components=1
+    mkdir -p "$HOME/.dotfiles" && curl -L https://github.com/zaron/dotfiles.git | tar -xz -C "$HOME/.dotfiles" --strip-components=1
+
+# download the dotfiles with wget if its installed
+elif [ -x "$(command -v wget)" ]; then
+    mkdir -p "$HOME/.dotfiles" && wget -qO- https://github.com/zaron/dotfiles.git | tar -xz -C "$HOME/.dotfiles" --strip-components=1
  
 # otherwise, print an error message
 else
