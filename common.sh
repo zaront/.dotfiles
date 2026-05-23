@@ -10,25 +10,22 @@ run_subcommand() {
     CMDS_DIR="$BASE_DIR/${WRAPPER_NAME}_cmds"
 
     show_generic_help() {
-        # 1. Read the description of the main wrapper script itself
         MAIN_DESC=$(sed -n "s/^# *desc: *//p" "$SCRIPT_PATH" 2>/dev/null)
         
-        # 2. Print the global script description first if it exists
         if [ -n "$MAIN_DESC" ]; then
             printf "%s\n\n" "$MAIN_DESC"
         fi
         
-        # 3. Print the usage line
         printf "Usage: %s [command] [arguments...]\n\n" "$WRAPPER_NAME"
         printf "Available commands:\n"
         
-        # 4. List the subcommands
         if [ -d "$CMDS_DIR" ]; then
-            for file in "$CMDS_DIR"/*; do
-                if [ -x "$file" ] && [ -f "$file" ]; then
-                    CMD_NAME="${file##*/}"
-                    DESC=$(sed -n "s/^# *desc: *//p" "$file" 2>/dev/null)
+            for file in "$CMDS_DIR"/*.sh; do
+                if [ -f "$file" ]; then
+                    FULL_NAME="${file##*/}"
+                    CMD_NAME="${FULL_NAME%.sh}"
                     
+                    DESC=$(sed -n "s/^# *desc: *//p" "$file" 2>/dev/null)
                     if [ -z "$DESC" ]; then
                         DESC="No description available."
                     fi
@@ -48,10 +45,17 @@ run_subcommand() {
 
     SUB_CMD="$1"
     shift
-    CMD_PATH="$CMDS_DIR/$SUB_CMD"
+    
+    CMD_PATH="$CMDS_DIR/${SUB_CMD}.sh"
 
-    if [ -x "$CMD_PATH" ] && [ -f "$CMD_PATH" ]; then
-        exec "$CMD_PATH" "$@"
+    # Validate that the targeted .sh file actually exists
+    if [ -f "$CMD_PATH" ]; then
+        # Dynamically select the interpreter based on the host shell environment
+        if [ -n "$BASH_VERSION" ]; then
+            exec bash "$CMD_PATH" "$@"
+        else
+            exec sh "$CMD_PATH" "$@"
+        fi
     else
         printf "Error: '%s' is not a valid %s command.\n" "$SUB_CMD" "$WRAPPER_NAME" >&2
         printf "Run '%s --help' to see available options.\n" "$WRAPPER_NAME" >&2

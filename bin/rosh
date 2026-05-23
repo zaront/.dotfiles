@@ -1,0 +1,6 @@
+#! /bin/bash
+# desc: Ros2 helper
+
+. $HOME/.dotfiles/common.sh
+
+run_subcommand "$0" "$@"

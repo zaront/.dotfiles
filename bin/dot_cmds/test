@@ -1,4 +1,0 @@
-# desc: is a test command
-
-echo "test command"
-echo "$@"
