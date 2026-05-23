@@ -1,3 +1,4 @@
 # run at the start of a new shell
 
-echo "working..."
+# add bin to path
+export PATH="$HOME/.dotfiles/bin:$PATH"
