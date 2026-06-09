@@ -3,13 +3,13 @@
 
 # UNINSTALL DOTFILES
 
-# if on bash remove sourcing shstart.sh from .bashrc if it exists
+# if on bash remove sourcing startup.sh from .bashrc if it exists
 if [ -f "$HOME/.bashrc" ]; then
-    sed -i "\|source $HOME/\.dotfiles/shstart\.sh|d" "$HOME/.bashrc"
+    sed -i "\|source $HOME/\.dotfiles/startup\.sh|d" "$HOME/.bashrc"
 
-# if on alpine ash remove sourcing shstart.sh to .profile if it exists
+# if on alpine ash remove sourcing startup.sh to .profile if it exists
 elif [ -f "$HOME/.profile" ]; then
-    sed -i "\|export ENV='$HOME/\.dotfiles/shstart\.sh'|d" "$HOME/.profile"
+    sed -i "\|export ENV='$HOME/\.dotfiles/startup\.sh'|d" "$HOME/.profile"
 fi 
 
 
