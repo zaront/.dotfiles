@@ -4,3 +4,28 @@
 . $HOME/.dotfiles/common.sh
 
 run_subcommand "$0" "$@"
+
+# list additional commands in the bin directory
+if [ -d "$HOME/.dotfiles/bin" ]; then
+    printf "\n%s\n" "Additional commands included with dotfiles:"
+    # list commands only executable files in the bin directory
+    for cmd in "$HOME/.dotfiles/bin"/*; do
+        if [ -x "$cmd" ]; then
+            # exclude directories and non-executable files
+            if [ ! -f "$cmd" ]; then
+                continue
+            fi
+            #exclude the main dotfiles script
+            if [ "$(basename "$cmd")" = "dotfiles" ]; then
+                continue
+            fi
+            # show each commands description if it exists
+            desc=$(grep -m 1 "^# desc:" "$cmd" | sed 's/# desc: //')
+            if [ -n "$desc" ]; then
+                echo "  $(basename "$cmd") - $desc"
+            else
+                echo "  $(basename "$cmd")"
+            fi
+        fi
+    done
+fi  
