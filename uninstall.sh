@@ -9,7 +9,7 @@ if [ -f "$HOME/.bashrc" ]; then
 
 # if on alpine ash remove sourcing startup.sh to .profile if it exists
 elif [ -f "$HOME/.profile" ]; then
-    sed -i "\|export ENV='$HOME/\.dotfiles/startup\.sh'|d" "$HOME/.profile"
+    sed -i "\|\. $HOME/\.dotfiles/startup\.sh|d" "$HOME/.profile"
 fi 
 
 

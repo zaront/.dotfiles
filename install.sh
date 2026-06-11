@@ -35,11 +35,15 @@ if [ -f "$HOME/.bashrc" ]; then
         printf "\nsource %s/.dotfiles/startup.sh\n" "$HOME" >> "$HOME/.bashrc"
     fi
 
-    # if on alpine ash add sourcing startup.sh to .profile if it doesn't already exist
+# if on alpine ash add sourcing startup.sh to .profile if it doesn't already exist
 elif [ -f "$HOME/.profile" ]; then
-    if ! grep -q "export ENV='$HOME/.dotfiles/startup.sh'" "$HOME/.profile"; then
-        printf "\nexport ENV='%s/.dotfiles/startup.sh'\n" "$HOME" >> "$HOME/.profile"
+    if ! grep -q ". $HOME/.dotfiles/startup.sh" "$HOME/.profile"; then
+        printf "\n. %s/.dotfiles/startup.sh\n" "$HOME" >> "$HOME/.profile"
     fi
+fi
+# if no .profile exists, create one
+if [ ! -f "$HOME/.profile" ]; then
+    printf "\n. %s/.dotfiles/startup.sh\n" "$HOME" > "$HOME/.profile"
 fi
 
 
