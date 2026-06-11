@@ -32,8 +32,8 @@ fi
 
 # if on bash add sourcing startup.sh to .bashrc if it doesn't already exist
 if [ -f "$HOME/.bashrc" ]; then
-    if ! grep -q "source $DOTFILES/startup.sh" "$HOME/.bashrc"; then
-        printf "\nsource %s/startup.sh\n" "$DOTFILES" >> "$HOME/.bashrc"
+    if ! grep -q ". $DOTFILES/startup.sh" "$HOME/.bashrc"; then
+        printf "\n. %s/startup.sh\n" "$DOTFILES" >> "$HOME/.bashrc"
     fi
 
 # if on alpine ash add sourcing startup.sh to .profile if it doesn't already exist

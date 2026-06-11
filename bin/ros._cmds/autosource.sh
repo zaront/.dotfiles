@@ -1,6 +1,6 @@
 # desc: Toggle automaticly sourcing ros in each terminal
 
-local flag_file="$HOME/.ros_autosource_enabled"
+flag_file="$HOME/.ros_autosource_enabled"
 
 if [ -f "$flag_file" ]; then
     rm "$flag_file"

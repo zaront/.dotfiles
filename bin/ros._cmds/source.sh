@@ -14,7 +14,7 @@ ws_arg=$2
 
 # 3. Source the core ROS 2 installation
 if [ -f "/opt/ros/$distro/setup.bash" ]; then
-    source "/opt/ros/$distro/setup.bash"
+    . "/opt/ros/$distro/setup.bash"
     echo "Sourced ROS 2 $distro"
 else
     echo "Error: ROS 2 $distro not found at /opt/ros/$distro"
@@ -26,13 +26,13 @@ fi
 if [ -n "$ws_arg" ]; then
     # Explicit path provided by user
     if [ -f "$ws_arg/install/setup.bash" ]; then
-        source "$ws_arg/install/setup.bash"
+        . "$ws_arg/install/setup.bash"
         echo "Sourced workspace: $ws_arg"
     else
         echo "Warning: Workspace not found at $ws_arg/install/setup.bash"
     fi
 elif [ -f "install/setup.bash" ]; then
     # Fallback to current working directory
-    source "install/setup.bash"
+    . "install/setup.bash"
     echo "Sourced local workspace: $(pwd)"
 fi
