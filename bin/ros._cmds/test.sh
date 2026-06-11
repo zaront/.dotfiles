@@ -1,7 +1,7 @@
 
-. $HOME/.dotfiles/common.sh
+. $DOTFILES/common.sh
 
-BASE_DIR=$HOME/.dotfiles/bin/rosh_cmds
+BASE_DIR=$DOTFILES/bin/ros_cmds
 echo $BASE_DIR
 
 VALUE=$(get_ini_value "test" "test" "$BASE_DIR/test.ini")

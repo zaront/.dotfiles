@@ -1,7 +1,8 @@
 # run at the start of a new shell
 
 # add bin to path
-export PATH="$HOME/.dotfiles/bin:$PATH"
+export DOTFILES="$HOME/.dotfiles"
+export PATH="$DOTFILES/bin:$PATH"
 
 
 # add support for bash completion
@@ -62,7 +63,7 @@ if [ -n "$BASH_VERSION" ]; then
     }
 
     # Automatically scan dotfiles directory and register matching executable wrappers
-    _df_bin_dir="$HOME/.dotfiles/bin"
+    _df_bin_dir="$DOTFILES/bin"
     if [ -d "$_df_bin_dir" ]; then
         for _target_exec in "$_df_bin_dir"/*; do
             if [ -f "$_target_exec" ] && [ -x "$_target_exec" ]; then

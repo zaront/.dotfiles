@@ -1,15 +1,15 @@
 #! /bin/sh
 # desc: Enable dotfile features
 
-. $HOME/.dotfiles/common.sh
+. $DOTFILES/common.sh
 
 run_subcommand "$0" "$@"
 
 # list additional commands in the bin directory
-if [ -d "$HOME/.dotfiles/bin" ]; then
+if [ -d "$DOTFILES/bin" ]; then
     printf "\n%s\n" "Additional commands included with dotfiles:"
     # list commands only executable files in the bin directory
-    for cmd in "$HOME/.dotfiles/bin"/*; do
+    for cmd in "$DOTFILES/bin"/*; do
         if [ -x "$cmd" ]; then
             # exclude directories and non-executable files
             if [ ! -f "$cmd" ]; then
