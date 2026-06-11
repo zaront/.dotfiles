@@ -1,8 +1,8 @@
 
 . $DOTFILES/common.sh
 
-BASE_DIR=$DOTFILES/bin/ros_cmds
-echo $BASE_DIR
+BASE_DIR=$DOTFILES/config
+
 
 VALUE=$(get_ini_value "test" "test" "$BASE_DIR/test.ini")
 echo $VALUE

@@ -138,3 +138,19 @@ set_ini_value() {
         }
     ' "$FILE" > "$TMP_FILE" && mv "$TMP_FILE" "$FILE"
 }
+
+
+##############
+# Flag files
+##############
+
+# Check if a flag file exists
+get_flag() {
+  [ -f "$DOTFILES/config/${1}.flag" ]
+}
+
+# Create a flag file and its parent directories if they don't exist
+set_flag() {
+  mkdir -p "$DOTFILES/config"
+  touch "$DOTFILES/config/${1}.flag"
+}
