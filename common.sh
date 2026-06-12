@@ -8,13 +8,21 @@
 # Parse options & commands
 ##########################
 
-# EXAMPLE METADATA: - added to the top of the script
+# EXAMPLE METADATA: - should be added to the top of the script
+
 # @DESC: My custom configuration script.
 # @SWITCH: v,verbose,Enable verbose debugging
-# @SWITCH: f,Full output mode
-# @OPTION: user,The deployment database user account
+# @SWITCH: f,,Full output mode
+# @SWITCH: t,testing,Testing mode
+# @OPTION: ,user,The deployment database user account
+# @OPTION: d,,Data,required
 # @PARAM: target_env,The name of the target server environment,required
 # @PARAM: log_dir,Path to write transaction logs
+
+# @DESC format: description
+# @SWITCH format: [short],[long],description
+# @OPTION format: [short],[long],description[,required]
+# @PARAM format: name,description[,required]
 
 _show_help() {
     _p_file_target="$1"
@@ -23,24 +31,35 @@ _show_help() {
     
     # print usage
     printf -- "Usage:  %s" "$_p_base_name"
-    # switches
+    # switches (format: short,long,description)
     echo "$_p_header" | grep "@SWITCH:" | while read -r _p_line; do
-        _p_raw=$(echo "$_p_line" | sed 's/.*@SWITCH: //' | cut -d, -f1)
-        case "$_p_raw" in
-            ??*) printf -- " [--%s]" "$_p_raw" ;;
-            *)   printf -- " [-%s]" "$_p_raw" ;;
-        esac
+        _p_clean=$(echo "$_p_line" | sed 's/.*@SWITCH: //')
+        _p_short=$(echo "$_p_clean" | cut -d, -f1)
+        _p_long=$(echo "$_p_clean" | cut -d, -f2)
+        if [ -n "$_p_long" ]; then
+            printf -- " [--%s]" "$_p_long"
+        elif [ -n "$_p_short" ]; then
+            printf -- " [-%s]" "$_p_short"
+        fi
     done
-    # options
+    # options (format: short,long,description[,required])
     echo "$_p_header" | grep "@OPTION:" | while read -r _p_line; do
         _p_clean=$(echo "$_p_line" | sed 's/.*@OPTION: //')
-        _p_raw=$(echo "$_p_clean" | cut -d, -f1)
-        case "$_p_clean" in
-            *,*,*,*) _p_var_name=$(echo "$_p_clean" | cut -d, -f2) ;;
-            *)       _p_var_name="value" ;;
-        esac
+        _p_short=$(echo "$_p_clean" | cut -d, -f1)
+        _p_long=$(echo "$_p_clean" | cut -d, -f2)
+        _p_desc=$(echo "$_p_clean" | cut -d, -f3)
         case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
-        case "$_p_raw" in ??*) _p_flag="--$_p_raw" ;; *) _p_flag="-$_p_raw" ;; esac
+        # display flag: prefer long name, otherwise short
+        if [ -n "$_p_long" ]; then
+            _p_flag="--$_p_long"
+            _p_var_name="$_p_long"
+        elif [ -n "$_p_short" ]; then
+            _p_flag="-$_p_short"
+            _p_var_name="value"
+        else
+            _p_flag=""
+            _p_var_name="value"
+        fi
 
         if [ "$_p_req" = "required" ]; then
             printf -- " %s <%s>" "$_p_flag" "$_p_var_name"
@@ -168,15 +187,29 @@ parse_options() {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -*)
-                # parse switch & option
+                # parse switch & option (new metadata format: short,long,description)
                 _p_clean_arg=$(echo "$1" | sed 's/^-*//')
                 _p_match_switch=$(echo "$_p_header" | grep "@SWITCH: " | grep -E ",$_p_clean_arg,|^# @SWITCH: $_p_clean_arg,")
                 _p_match_option=$(echo "$_p_header" | grep "@OPTION: " | grep -E ",$_p_clean_arg,|^# @OPTION: $_p_clean_arg,")
                 if [ -n "$_p_match_switch" ]; then
-                    _p_var_name=$(echo "$_p_match_switch" | sed 's/.*@SWITCH: //' | cut -d, -f2)
+                    _p_clean_switch=$(echo "$_p_match_switch" | sed 's/.*@SWITCH: //')
+                    _p_switch_short=$(echo "$_p_clean_switch" | cut -d, -f1)
+                    _p_switch_long=$(echo "$_p_clean_switch" | cut -d, -f2)
+                    if [ -n "$_p_switch_long" ]; then
+                        _p_var_name="$_p_switch_long"
+                    else
+                        _p_var_name="$_p_switch_short"
+                    fi
                     eval "$_p_var_name=true"
                 elif [ -n "$_p_match_option" ]; then
-                    _p_var_name=$(echo "$_p_match_option" | sed 's/.*@OPTION: //' | cut -d, -f2)
+                    _p_clean_option=$(echo "$_p_match_option" | sed 's/.*@OPTION: //')
+                    _p_opt_short=$(echo "$_p_clean_option" | cut -d, -f1)
+                    _p_opt_long=$(echo "$_p_clean_option" | cut -d, -f2)
+                    if [ -n "$_p_opt_long" ]; then
+                        _p_var_name="$_p_opt_long"
+                    else
+                        _p_var_name="$_p_opt_short"
+                    fi
                     if [ -z "$2" ] || case "$2" in -*) true ;; *) false ;; esac; then
                         printf -- "Error: Option --%s requires a matching value.\n" "$_p_clean_arg" >&2
                         exit 1
@@ -237,11 +270,14 @@ parse_options() {
         case "$_p_line" in *,required*) _p_requirement="required" ;; *) _p_requirement="optional" ;; esac
         if [ "$_p_requirement" = "required" ] ; then
             _p_clean_line=$(echo "$_p_line" | sed 's/.*@OPTION: //')
-            case "$_p_clean_line" in
-                *,*,*,*) _p_var_name=$(echo "$_p_clean_line" | cut -d, -f2) ;;
-                *)       _p_var_name=$(echo "$_p_clean_line" | cut -d, -f1) ;;
-            esac
-            eval "_p_current_val=\"\$$_p_var_name\""
+            _p_opt_short=$(echo "$_p_clean_line" | cut -d, -f1)
+            _p_opt_long=$(echo "$_p_clean_line" | cut -d, -f2)
+            if [ -n "$_p_opt_long" ]; then
+                _p_var_name="$_p_opt_long"
+            else
+                _p_var_name="$_p_opt_short"
+            fi
+            eval "_p_current_val=\$$_p_var_name"
             if [ -z "$_p_current_val" ]; then
                 printf -- "Error: Mandatory option value mapping for '%s' is missing.\n" "$_p_var_name" >&2
                 exit 1 
@@ -254,7 +290,7 @@ parse_options() {
         if [ "$_p_requirement" = "required" ]; then
             _p_clean_line=$(echo "$_p_line" | sed 's/.*@PARAM: //')
             _p_param_name=$(echo "$_p_clean_line" | cut -d, -f1)
-            eval "_p_current_val=\"\$$_p_param_name\""
+            eval "_p_current_val=\$$_p_param_name"
             if [ -z "$_p_current_val" ]; then
                 printf -- "Error: Mandatory parameter <%s> is missing.\n" "$_p_param_name" >&2
                 exit 1

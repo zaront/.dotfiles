@@ -1,6 +1,6 @@
 # @DESC: My custom configuration script.
-# @SWITCH: v,verbose,Enable verbose debugging
-# @OPTION: user,The deployment database user account
+# @SWITCH: v,,Enable verbose debugging
+# @OPTION: u,user,The deployment database user account
 # @PARAM: target_env,The name of the target server environment
 # @PARAM: log_dir,Path to write transaction logs
 
