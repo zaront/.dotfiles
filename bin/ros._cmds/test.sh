@@ -1,7 +1,18 @@
+# @DESC: test command
 
 . $DOTFILES/common.sh
 
-run_subcommand "$0" "$@"
+parse_options "$0" "$@"
+
+if [ "$v" = true ]; then
+    echo "Verbose on test (1)"
+fi
+
+exec_command
+
+if [ "$v" = true ]; then
+    echo "Verbose on test (2)"
+fi
 
 BASE_DIR=$DOTFILES/config
 

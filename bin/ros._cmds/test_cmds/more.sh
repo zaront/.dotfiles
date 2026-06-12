@@ -1,17 +1,16 @@
-# @META_DESC: My custom configuration script.
+# @DESC: My custom configuration script.
 # @SWITCH: v,verbose,Enable verbose debugging
 # @OPTION: user,The deployment database user account
-# @PARAM: target_env,The name of the target server environment,required
+# @PARAM: target_env,The name of the target server environment
 # @PARAM: log_dir,Path to write transaction logs
 
 # desc: more testing
 . "$HOME/.dotfiles/common.sh"
 
-
-parse_meta_tags "$0" "$@"
+parse_options "$0" "$@"
 
 if [ "$v" = true ]; then
-    echo "Verbose mode enabled"
+    echo "Verbose on more"
 fi
 
 if [ -n "$user" ]; then

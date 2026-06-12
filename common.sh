@@ -1,144 +1,187 @@
 # common helper functions for dotfiles
 
-
-##############
-# Sub Commands
-##############
-
-
-# Pure POSIX compliant meta-tag options parser.
+# Pure POSIX compliant.
 # Works in any standard 'sh' shell environment.
 
-_pmt_render_help() {
-    _pmt_file_target="$1"
-    _pmt_header_data="$2"
-    _pmt_base_name=$(basename "$_pmt_file_target" .sh)
-    
-    printf -- "Usage: %s" "$_pmt_base_name"
 
-    echo "$_pmt_header_data" | grep "@SWITCH:" | while read -r _pmt_line; do
-        _pmt_raw=$(echo "$_pmt_line" | sed 's/.*@SWITCH: //' | cut -d, -f1)
-        case "$_pmt_raw" in
-            ??*) printf -- " [--%s]" "$_pmt_raw" ;;
-            *)   printf -- " [-%s]" "$_pmt_raw" ;;
+##########################
+# Parse options & commands
+##########################
+
+# EXAMPLE METADATA: - added to the top of the script
+# @DESC: My custom configuration script.
+# @SWITCH: v,verbose,Enable verbose debugging
+# @SWITCH: f,Full output mode
+# @OPTION: user,The deployment database user account
+# @PARAM: target_env,The name of the target server environment,required
+# @PARAM: log_dir,Path to write transaction logs
+
+_show_help() {
+    _p_file_target="$1"
+    _p_header_data="$2"
+    _p_base_name=$(basename "$_p_file_target" .sh)
+    
+    # print usage
+    printf -- "Usage:  %s" "$_p_base_name"
+    # switches
+    echo "$_p_header" | grep "@SWITCH:" | while read -r _p_line; do
+        _p_raw=$(echo "$_p_line" | sed 's/.*@SWITCH: //' | cut -d, -f1)
+        case "$_p_raw" in
+            ??*) printf -- " [--%s]" "$_p_raw" ;;
+            *)   printf -- " [-%s]" "$_p_raw" ;;
         esac
     done
-    
-    echo "$_pmt_header_data" | grep "@OPTION:" | while read -r _pmt_line; do
-        _pmt_clean=$(echo "$_pmt_line" | sed 's/.*@OPTION: //')
-        _pmt_raw=$(echo "$_pmt_clean" | cut -d, -f1)
-        case "$_pmt_clean" in
-            *,*,*,*) _pmt_var_name=$(echo "$_pmt_clean" | cut -d, -f2) ;;
-            *)       _pmt_var_name="value" ;;
+    # options
+    echo "$_p_header" | grep "@OPTION:" | while read -r _p_line; do
+        _p_clean=$(echo "$_p_line" | sed 's/.*@OPTION: //')
+        _p_raw=$(echo "$_p_clean" | cut -d, -f1)
+        case "$_p_clean" in
+            *,*,*,*) _p_var_name=$(echo "$_p_clean" | cut -d, -f2) ;;
+            *)       _p_var_name="value" ;;
         esac
-        case "$_pmt_line" in *,required*) _pmt_req="required" ;; *) _pmt_req="optional" ;; esac
-        case "$_pmt_raw" in ??*) _pmt_flag="--$_pmt_raw" ;; *) _pmt_flag="-$_pmt_raw" ;; esac
+        case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
+        case "$_p_raw" in ??*) _p_flag="--$_p_raw" ;; *) _p_flag="-$_p_raw" ;; esac
 
-        if [ "$_pmt_req" = "required" ]; then
-            printf -- " %s <%s>" "$_pmt_flag" "$_pmt_var_name"
+        if [ "$_p_req" = "required" ]; then
+            printf -- " %s <%s>" "$_p_flag" "$_p_var_name"
         else
-            printf -- " [%s <%s>]" "$_pmt_flag" "$_pmt_var_name"
+            printf -- " [%s <%s>]" "$_p_flag" "$_p_var_name"
         fi
     done
-
-    echo "$_pmt_header_data" | grep "@PARAM:" | while read -r _pmt_line; do
-        _pmt_clean=$(echo "$_pmt_line" | sed 's/.*@PARAM: //')
-        _pmt_param_name=$(echo "$_pmt_clean" | cut -d, -f1)
-        case "$_pmt_line" in *,required*) _pmt_req="required" ;; *) _pmt_req="optional" ;; esac
-        if [ "$_pmt_req" = "required" ]; then
-            printf -- " <%s>" "$_pmt_param_name"
+    # parameters
+    echo "$_p_header" | grep "@PARAM:" | while read -r _p_line; do
+        _p_clean=$(echo "$_p_line" | sed 's/.*@PARAM: //')
+        _p_param_name=$(echo "$_p_clean" | cut -d, -f1)
+        case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
+        if [ "$_p_req" = "required" ]; then
+            printf -- " <%s>" "$_p_param_name"
         else
-            printf -- " [<%s>]" "$_pmt_param_name"
+            printf -- " [<%s>]" "$_p_param_name"
         fi
     done
+    printf -- "\n"
 
-    printf -- "\n\nDescription:\n"
-    _pmt_desc=$(echo "$_pmt_header_data" | grep "@META_DESC" | sed 's/.*@META_DESC: //')
-    if [ -z "$_pmt_desc" ]; then
-        _pmt_desc=$(echo "$_pmt_header_data" | grep "# *desc:" | sed 's/^# *desc: *//')
+    # print description
+    _p_desc="$_p_meta_desc"
+    if [ -n "$_p_desc" ]; then
+        printf -- "\n%s\n" "$_p_desc"
     fi
-    printf -- "  %s\n" "$_pmt_desc"
 
-    if echo "$_pmt_header_data" | grep -E -q "@SWITCH:|@OPTION:|@PARAM:"; then
-        printf -- "\nOptions & Parameters:\n"
-        echo "$_pmt_header_data" | grep -E "@SWITCH:|@OPTION:|@PARAM:" | while read -r _pmt_line; do
-            case "$_pmt_line" in
+    # print options
+    if echo "$_p_header" | grep -E -q "@SWITCH:|@OPTION:|@PARAM:"; then
+        printf -- "\nOptions:\n"
+        echo "$_p_header" | grep -E "@SWITCH:|@OPTION:|@PARAM:" | while read -r _p_line; do
+            case "$_p_line" in
                 *@PARAM:*)
-                    _pmt_clean_line=$(echo "$_pmt_line" | sed 's/.*@PARAM: //')
-                    _pmt_p_name=$(echo "$_pmt_clean_line" | cut -d, -f1)
-                    _pmt_p_desc=$(echo "$_pmt_clean_line" | cut -d, -f2)
-                    case "$_pmt_line" in *,required*) _pmt_p_req="required" ;; *) _pmt_p_req="optional" ;; esac
-                    _pmt_col1=$(printf -- "<%s>" "$_pmt_p_name")
-                    if [ "$_pmt_p_req" = "required" ]; then
-                        printf -- "  %-25s %s (**required)\n" "$_pmt_col1" "$_pmt_p_desc"
+                    _p_clean_line=$(echo "$_p_line" | sed 's/.*@PARAM: //')
+                    _p_p_name=$(echo "$_p_clean_line" | cut -d, -f1)
+                    _p_p_desc=$(echo "$_p_clean_line" | cut -d, -f2)
+                    case "$_p_line" in *,required*) _p_p_req="required" ;; *) _p_p_req="optional" ;; esac
+                    _p_col1=$(printf -- "<%s>" "$_p_p_name")
+                    if [ "$_p_p_req" = "required" ]; then
+                        printf -- "  %-25s %s (**required)\n" "$_p_col1" "$_p_p_desc"
                     else
-                        printf -- "  %-25s %s\n" "$_pmt_col1" "$_pmt_p_desc"
+                        printf -- "  %-25s %s\n" "$_p_col1" "$_p_p_desc"
                     fi
                     ;;
                 *)
-                    _pmt_tag_type="SWITCH"
-                    case "$_pmt_line" in *@OPTION:*) _pmt_tag_type="OPTION" ;; esac
-                    _pmt_clean_line=$(echo "$_pmt_line" | sed "s/.*@\($_pmt_tag_type\): //")
-                    _pmt_raw=$(echo "$_pmt_clean_line" | cut -d, -f1)
-                    case "$_pmt_line" in *,required*) _pmt_req="required" ;; *) _pmt_req="optional" ;; esac
-                    case "$_pmt_clean_line" in
+                    _p_tag_type="SWITCH"
+                    case "$_p_line" in *@OPTION:*) _p_tag_type="OPTION" ;; esac
+                    _p_clean_line=$(echo "$_p_line" | sed "s/.*@\($_p_tag_type\): //")
+                    _p_raw=$(echo "$_p_clean_line" | cut -d, -f1)
+                    case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
+                    case "$_p_clean_line" in
                         *,*,*,*) 
-                            _pmt_long=$(echo "$_pmt_clean_line" | cut -d, -f2)
-                            _pmt_desc=$(echo "$_pmt_clean_line" | cut -d, -f3)
-                            _pmt_col1=$(printf -- "-%s, --%s" "$_pmt_raw" "$_pmt_long")
+                            _p_long=$(echo "$_p_clean_line" | cut -d, -f2)
+                            _p_desc=$(echo "$_p_clean_line" | cut -d, -f3)
+                            _p_col1=$(printf -- "-%s, --%s" "$_p_raw" "$_p_long")
                             ;;
                         *)
-                            _pmt_desc=$(echo "$_pmt_clean_line" | cut -d, -f2)
-                            case "$_pmt_raw" in
-                                ??*) _pmt_col1=$(printf -- "--%s" "$_pmt_raw") ;;
-                                *)   _pmt_col1=$(printf -- "-%s" "$_pmt_raw") ;;
+                            _p_desc=$(echo "$_p_clean_line" | cut -d, -f2)
+                            case "$_p_raw" in
+                                ??*) _p_col1=$(printf -- "--%s" "$_p_raw") ;;
+                                *)   _p_col1=$(printf -- "-%s" "$_p_raw") ;;
                             esac
                             ;;
                     esac
-                    if [ "$_pmt_req" = "required" ]; then
-                        printf -- "  %-25s %s (**required)\n" "$_pmt_col1" "$_pmt_desc"
+                    if [ "$_p_req" = "required" ]; then
+                        printf -- "  %-25s %s (**required)\n" "$_p_col1" "$_p_desc"
                     else
-                        printf -- "  %-25s %s\n" "$_pmt_col1" "$_pmt_desc"
+                        printf -- "  %-25s %s\n" "$_p_col1" "$_p_desc"
                     fi
                     ;;
             esac
         done
     fi
+
+    # print commands
+    if [ -d "$_p_cmds_dir" ]; then
+        printf "\nCommands:\n"
+        for _p_s_file in "$_p_cmds_dir"/*.sh; do
+            if [ -f "$_p_s_file" ]; then
+                _p_cmd_name="$(basename "$_p_s_file" .sh)"
+                _p_s_desc=$(sed -n "s/.*@DESC: //p" "$_p_s_file" 2>/dev/null)
+                [ -z "$_p_s_desc" ] && _p_s_desc=""
+                printf "  %-15s %s\n" "$_p_cmd_name" "$_p_s_desc"
+            fi
+        done
+    fi
 }
 
-parse_meta_tags() {
-    _pmt_target_file="$1"
-    shift 
+parse_options() {
+    _p_target_file="$1"
+    shift
+    _p_base_dir=$(dirname "$_p_target_file")
+    _p_wrapper_name=$(basename "$_p_target_file")
+    _p_clean_name="${_p_wrapper_name%.sh}"
+    _p_cmds_dir="$_p_base_dir/${_p_clean_name}_cmds"
     
-    _pmt_header=$(sed -n '/^#/p; /^[^#]/q' "$_pmt_target_file")
-    echo "$_pmt_header" | grep "@META" >/dev/null 2>&1 || return 0
+    # extract header - all # lines at the top
+    _p_header=$(sed -n '/^#/p; /^[^#]/q' "$_p_target_file" 2>/dev/null || true)
+    
+    # parse header
+    _p_meta_desc=$(echo "$_p_header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
+    _p_switch_lines=$(echo "$_p_header" | grep "@SWITCH:" 2>/dev/null || true)
+    _p_option_lines=$(echo "$_p_header" | grep "@OPTION:" 2>/dev/null || true)
+    _p_param_lines=$(echo "$_p_header" | grep "@PARAM:" 2>/dev/null || true)
 
-    # Intercept help requests right away before normal argument evaluation
-    for _pmt_arg in "$@"; do
-        if [ "$_pmt_arg" = "-h" ] || [ "$_pmt_arg" = "--help" ]; then
-            _pmt_render_help "$_pmt_target_file" "$_pmt_header"
+    command=""
+    _p_command_path=""
+    _p_command_args=""
+
+    # show help if there are subcommands and no arguments
+    if [ -d "$_p_cmds_dir" ] && [ "$#" -eq 0 ]; then
+        _show_help "$_p_target_file" "$_p_header"
+        exit 0
+    fi
+
+    # show help if -h or --help are passed as arguments
+    for _p_arg in "$@"; do
+        if [ "$_p_arg" = "-h" ] || [ "$_p_arg" = "--help" ]; then
+            _show_help "$_p_target_file" "$_p_header"
             exit 0
         fi
     done
 
     # CLI argument processing loop
-    _pmt_param_count=0
+    _p_param_count=0
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -*)
-                _pmt_clean_arg=$(echo "$1" | sed 's/^-*//')
-                _pmt_match_switch=$(echo "$_pmt_header" | grep "@SWITCH: " | grep -E ",$_pmt_clean_arg,|^# @SWITCH: $_pmt_clean_arg,")
-                _pmt_match_option=$(echo "$_pmt_header" | grep "@OPTION: " | grep -E ",$_pmt_clean_arg,|^# @OPTION: $_pmt_clean_arg,")
-                if [ -n "$_pmt_match_switch" ]; then
-                    _pmt_var_name=$(echo "$_pmt_match_switch" | sed 's/.*@SWITCH: //' | cut -d, -f2)
-                    eval "$_pmt_var_name=true"
-                elif [ -n "$_pmt_match_option" ]; then
-                    _pmt_var_name=$(echo "$_pmt_match_option" | sed 's/.*@OPTION: //' | cut -d, -f2)
+                # parse switch & option
+                _p_clean_arg=$(echo "$1" | sed 's/^-*//')
+                _p_match_switch=$(echo "$_p_header" | grep "@SWITCH: " | grep -E ",$_p_clean_arg,|^# @SWITCH: $_p_clean_arg,")
+                _p_match_option=$(echo "$_p_header" | grep "@OPTION: " | grep -E ",$_p_clean_arg,|^# @OPTION: $_p_clean_arg,")
+                if [ -n "$_p_match_switch" ]; then
+                    _p_var_name=$(echo "$_p_match_switch" | sed 's/.*@SWITCH: //' | cut -d, -f2)
+                    eval "$_p_var_name=true"
+                elif [ -n "$_p_match_option" ]; then
+                    _p_var_name=$(echo "$_p_match_option" | sed 's/.*@OPTION: //' | cut -d, -f2)
                     if [ -z "$2" ] || case "$2" in -*) true ;; *) false ;; esac; then
-                        printf -- "Error: Option --%s requires a matching value.\n" "$_pmt_clean_arg" >&2
+                        printf -- "Error: Option --%s requires a matching value.\n" "$_p_clean_arg" >&2
                         exit 1
                     fi
-                    eval "$_pmt_var_name=\"\$2\""
+                    eval "$_p_var_name=\"\$2\""
                     shift
                 else
                     printf -- "Error: Unknown option '%s'. Use --help for usage.\n" "$1" >&2
@@ -146,11 +189,34 @@ parse_meta_tags() {
                 fi
                 ;;
             *)
-                _pmt_param_count=$((_pmt_param_count + 1))
-                _pmt_param_match=$(echo "$_pmt_header" | grep "@PARAM:" | sed -n "${_pmt_param_count}p")
-                if [ -n "$_pmt_param_match" ]; then
-                    _pmt_param_name=$(echo "$_pmt_param_match" | sed 's/.*@PARAM: //' | cut -d, -f1)
-                    eval "$_pmt_param_name=\"\$1\""
+                # parse command
+                if [ -d "$_p_cmds_dir" ] && [ -z "$_p_command_path" ]; then
+                    _p_candidate="$1"
+                    _p_candidate_path="$_p_cmds_dir/${_p_candidate}.sh"
+                    if [ -f "$_p_candidate_path" ]; then
+                        # command found
+                        command="$1"
+                        _p_command_path="$_p_candidate_path"
+                        shift
+                        # collect remaining arguments - swap out spaces for newlines
+                        _p_command_args=""
+                        while [ "$#" -gt 0 ]; do
+                            _p_command_args="${_p_command_args}${_p_command_args:+
+}$1"
+                            shift
+                        done
+                        break
+                    fi
+                    printf "Error: '%s' is not a valid %s command.\n" "$1" "$_p_clean_name" >&2
+                    printf "Run '%s --help' to see available options.\n" "$_p_clean_name" >&2
+                    exit 1
+                fi
+                # parse params - if not a command it must be a param
+                _p_param_count=$((_p_param_count + 1))
+                _p_param_match=$(echo "$_p_header" | grep "@PARAM:" | sed -n "${_p_param_count}p")
+                if [ -n "$_p_param_match" ]; then
+                    _p_param_name=$(echo "$_p_param_match" | sed 's/.*@PARAM: //' | cut -d, -f1)
+                    eval "$_p_param_name=\"\$1\""
                 else
                     printf -- "Error: Unexpected argument '%s'.\n" "$1" >&2
                     exit 1
@@ -160,117 +226,80 @@ parse_meta_tags() {
         shift
     done
 
-    # Validation pipelines
-    _pmt_validation_failed=false
-    echo "$_pmt_header" | grep "@OPTION:" | while read -r _pmt_line; do
-        case "$_pmt_line" in *,required*) _pmt_requirement="required" ;; *) _pmt_requirement="optional" ;; esac
-        if [ "$_pmt_requirement" = "required" ] ; then
-            _pmt_clean_line=$(echo "$_pmt_line" | sed 's/.*@OPTION: //')
-            case "$_pmt_clean_line" in
-                *,*,*,*) _pmt_var_name=$(echo "$_pmt_clean_line" | cut -d, -f2) ;;
-                *)       _pmt_var_name=$(echo "$_pmt_clean_line" | cut -d, -f1) ;;
+
+    # Validation
+    if [ -z "$_p_option_lines" ] && [ -z "$_p_param_lines" ]; then
+        return 0
+    fi
+    _p_validation_failed=false
+    # validate required options
+    printf "%s\n" "$_p_option_lines" | while read -r _p_line; do
+        case "$_p_line" in *,required*) _p_requirement="required" ;; *) _p_requirement="optional" ;; esac
+        if [ "$_p_requirement" = "required" ] ; then
+            _p_clean_line=$(echo "$_p_line" | sed 's/.*@OPTION: //')
+            case "$_p_clean_line" in
+                *,*,*,*) _p_var_name=$(echo "$_p_clean_line" | cut -d, -f2) ;;
+                *)       _p_var_name=$(echo "$_p_clean_line" | cut -d, -f1) ;;
             esac
-            eval "_pmt_current_val=\"\$$_pmt_var_name\""
-            if [ -z "$_pmt_current_val" ]; then
-                printf -- "Error: Mandatory option value mapping for '%s' is missing.\n" "$_pmt_var_name" >&2
+            eval "_p_current_val=\"\$$_p_var_name\""
+            if [ -z "$_p_current_val" ]; then
+                printf -- "Error: Mandatory option value mapping for '%s' is missing.\n" "$_p_var_name" >&2
                 exit 1 
             fi
         fi
-    done || _pmt_validation_failed=true
-
-    echo "$_pmt_header" | grep "@PARAM:" | while read -r _pmt_line; do
-        case "$_pmt_line" in *,required*) _pmt_requirement="required" ;; *) _pmt_requirement="optional" ;; esac
-        if [ "$_pmt_requirement" = "required" ]; then
-            _pmt_clean_line=$(echo "$_pmt_line" | sed 's/.*@PARAM: //')
-            _pmt_param_name=$(echo "$_pmt_clean_line" | cut -d, -f1)
-            eval "_pmt_current_val=\"\$$_pmt_param_name\""
-            if [ -z "$_pmt_current_val" ]; then
-                printf -- "Error: Mandatory parameter <%s> is missing.\n" "$_pmt_param_name" >&2
+    done || _p_validation_failed=true
+    # validate required parameters
+    printf "%s\n" "$_p_param_lines" | while read -r _p_line; do
+        case "$_p_line" in *,required*) _p_requirement="required" ;; *) _p_requirement="optional" ;; esac
+        if [ "$_p_requirement" = "required" ]; then
+            _p_clean_line=$(echo "$_p_line" | sed 's/.*@PARAM: //')
+            _p_param_name=$(echo "$_p_clean_line" | cut -d, -f1)
+            eval "_p_current_val=\"\$$_p_param_name\""
+            if [ -z "$_p_current_val" ]; then
+                printf -- "Error: Mandatory parameter <%s> is missing.\n" "$_p_param_name" >&2
                 exit 1
             fi
         fi
-    done || _pmt_validation_failed=true
-
-    if [ "$_pmt_validation_failed" = true ]; then
+    done || _p_validation_failed=true
+    # exit with error if a validation failed
+    if [ "$_p_validation_failed" = true ]; then
         exit 1
     fi
 }
 
 
-# Pure POSIX compliant subcommand routing engine.
-# Works in any standard 'sh' shell environment.
-
-_pmt_render_commands_help() {
-    _pmt_file_target="$1"
-    _pmt_base_dir=$(dirname "$_pmt_file_target")
-    _pmt_wrapper_name=$(basename "$_pmt_file_target")
-    _pmt_clean_name="${_pmt_wrapper_name%.sh}"
-    _pmt_cmds_dir="$_pmt_base_dir/${_pmt_clean_name}_cmds"
-
-    _pmt_main_desc=$(sed -n "s/^# *desc: *//p" "$_pmt_file_target" 2>/dev/null)
-    if [ -n "$_pmt_main_desc" ]; then
-        printf "%s\n\n" "$_pmt_main_desc"
-    fi
-
-    printf "Usage: %s [command] [arguments...]\n\n" "$_pmt_wrapper_name"
-    printf "Available commands:\n"
-
-    if [ -d "$_pmt_cmds_dir" ]; then
-        for _pmt_file in "$_pmt_cmds_dir"/*.sh; do
-            if [ -f "$_pmt_file" ]; then
-                _pmt_full_name="${_pmt_file##*/}"
-                _pmt_cmd_name="${_pmt_full_name%.sh}"
-                _pmt_desc=$(sed -n "s/^# *desc: *//p" "$_pmt_file" 2>/dev/null)
-                
-                if [ -z "$_pmt_desc" ]; then
-                    _pmt_desc=$(sed -n "s/.*@META_DESC: //p" "$_pmt_file" 2>/dev/null)
-                fi
-                [ -z "$_pmt_desc" ] && _pmt_desc="No description available."
-                
-                printf "  %-15s %s\n" "$_pmt_cmd_name" "$_pmt_desc"
-            fi
-        done
-    else
-        printf "  (No commands found. Directory %s_cmds does not exist)\n" "$_pmt_clean_name"
-    fi
-}
-
-run_subcommand() {
-    _pmt_script_path="$1"
-    shift
-    
-    _pmt_base_dir=$(dirname "$_pmt_script_path")
-    _pmt_wrapper_name=$(basename "$_pmt_script_path")
-    _pmt_clean_name="${_pmt_wrapper_name%.sh}"
-    _pmt_cmds_dir="$_pmt_base_dir/${_pmt_clean_name}_cmds"
-
-    # Route help requests right away to the flat helper function
-    if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-        _pmt_render_commands_help "$_pmt_script_path"
+exec_command() {
+    # validate
+    if [ -z "$command" ]; then
         return 0
     fi
 
-    _pmt_sub_cmd="$1"
-    shift
-    _pmt_cmd_path="$_pmt_cmds_dir/${_pmt_sub_cmd}.sh"
+    # get arguments back into $@ for the command - swap out newlines for spaces
+    _p_prev_ifs=$IFS
+    IFS='
+'
+    set -f
+    set -- $_p_command_args
+    set +f
+    IFS=$_p_prev_ifs
 
-    # Intercept and hand over script execution context
-    if [ -f "$_pmt_cmd_path" ]; then
-        exec sh "$_pmt_cmd_path" "$@"
-    else
-        printf "Error: '%s' is not a valid %s command.\n" "$_pmt_sub_cmd" "$_pmt_wrapper_name" >&2
-        printf "Run '%s --help' to see available options.\n" "$_pmt_wrapper_name" >&2
-        return 1
-    fi
+    # run the command
+    exec sh "$_p_command_path" "$@"
+}
+
+run_subcommand() {
+  shift
+  parse_options "$0" "$@"
+  exec_command
 }
 
 
 
 
-
-##############
+################
 # Config Helpers
-##############
+################
+
 
 # Read a value from a specific section and key in an INI file
 # Usage: get_ini_value "section" "key" "/path/to/file.ini"

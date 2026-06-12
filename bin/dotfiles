@@ -5,6 +5,7 @@
 
 run_subcommand "$0" "$@"
 
+
 # list additional commands in the bin directory
 if [ -d "$DOTFILES/bin" ]; then
     printf "\n%s\n" "Additional commands included with dotfiles:"
