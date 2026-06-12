@@ -16,6 +16,10 @@ if [ "$v" = true ]; then
     echo "Verbose on test (2)"
 fi
 
+if [ -n "$target_env" ]; then
+    echo "Target environment: $target_env"
+fi
+
 BASE_DIR=$DOTFILES/config
 
 

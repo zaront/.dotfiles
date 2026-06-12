@@ -94,6 +94,19 @@ _show_help() {
         printf -- "\n%s\n" "$_p_desc"
     fi
 
+    # print commands
+    if [ -d "$_p_cmds_dir" ]; then
+        printf "\nCommands:\n"
+        for _p_s_file in "$_p_cmds_dir"/*.sh; do
+            if [ -f "$_p_s_file" ]; then
+                _p_cmd_name="$(basename "$_p_s_file" .sh)"
+                _p_s_desc=$(sed -n "s/.*@DESC: //p" "$_p_s_file" 2>/dev/null)
+                [ -z "$_p_s_desc" ] && _p_s_desc=""
+                printf "  %-15s %s\n" "$_p_cmd_name" "$_p_s_desc"
+            fi
+        done
+    fi
+
     # print options
     if echo "$_p_header" | grep -E -q "@SWITCH:|@OPTION:|@PARAM:"; then
         printf -- "\nOptions:\n"
@@ -138,19 +151,6 @@ _show_help() {
                     fi
                     ;;
             esac
-        done
-    fi
-
-    # print commands
-    if [ -d "$_p_cmds_dir" ]; then
-        printf "\nCommands:\n"
-        for _p_s_file in "$_p_cmds_dir"/*.sh; do
-            if [ -f "$_p_s_file" ]; then
-                _p_cmd_name="$(basename "$_p_s_file" .sh)"
-                _p_s_desc=$(sed -n "s/.*@DESC: //p" "$_p_s_file" 2>/dev/null)
-                [ -z "$_p_s_desc" ] && _p_s_desc=""
-                printf "  %-15s %s\n" "$_p_cmd_name" "$_p_s_desc"
-            fi
         done
     fi
 }
@@ -253,10 +253,13 @@ parse_options() {
                         done
                         break
                     fi
-                    printf "Error: '%s' is not a valid %s command.\n" "$1" "$_p_clean_name" >&2
-                    printf "Run '%s --help' to see available options.\n" "$_p_clean_name" >&2
-                    exit 1
-                fi
+                    # show command error if there are no params
+                    if [ -z "$_p_param_lines" ]; then
+                        printf "Error: '%s' is not a valid %s command.\n" "$1" "$_p_clean_name" >&2
+                        printf "Run '%s --help' to see available options.\n" "$_p_clean_name" >&2
+                        exit 1
+                    fi
+                fi  
                 # parse params - if not a command it must be a param
                 _p_param_count=$((_p_param_count + 1))
                 _p_param_match=$(echo "$_p_header" | grep "@PARAM:" | sed -n "${_p_param_count}p")
