@@ -1,4 +1,5 @@
 # @DESC: test command
+# @SWITCH: v,,Enable verbose debugging
 
 . $DOTFILES/common.sh
 

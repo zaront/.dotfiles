@@ -174,14 +174,6 @@ parse_options() {
         exit 0
     fi
 
-    # show help if -h or --help are passed as arguments
-    for _p_arg in "$@"; do
-        if [ "$_p_arg" = "-h" ] || [ "$_p_arg" = "--help" ]; then
-            _show_help "$_p_target_file" "$_p_header"
-            exit 0
-        fi
-    done
-
     # CLI argument processing loop
     _p_param_count=0
     while [ "$#" -gt 0 ]; do
@@ -217,8 +209,21 @@ parse_options() {
                     eval "$_p_var_name=\"\$2\""
                     shift
                 else
-                    printf -- "Error: Unknown option '%s'. Use --help for usage.\n" "$1" >&2
-                    exit 1
+                    # handle -h/--help: show root help only if no command found yet
+                    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+                        if [ -z "$_p_command_path" ]; then
+                            # no command found - show root help
+                            _show_help "$_p_target_file" "$_p_header"
+                            exit 0
+                        else
+                            # command already found - pass -h/--help to subcommand
+                            _p_command_args="${_p_command_args}${_p_command_args:+
+}$1"
+                        fi
+                    else
+                        printf -- "Error: Unknown option '%s'. Use --help for usage.\n" "$1" >&2
+                        exit 1
+                    fi
                 fi
                 ;;
             *)
