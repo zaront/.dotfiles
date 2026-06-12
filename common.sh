@@ -67,8 +67,16 @@ _show_help() {
             printf -- " [%s <%s>]" "$_p_flag" "$_p_var_name"
         fi
     done
+    # command
+    if [ -d "$_p_cmds_dir" ]; then
+        if [ -n "$_p_param_lines" ]; then
+            printf -- " [COMMAND]"
+        else
+            printf -- " COMMAND"
+        fi
+    fi
     # parameters
-    echo "$_p_header" | grep "@PARAM:" | while read -r _p_line; do
+    echo "$_p_param_lines" | while read -r _p_line; do
         _p_clean=$(echo "$_p_line" | sed 's/.*@PARAM: //')
         _p_param_name=$(echo "$_p_clean" | cut -d, -f1)
         case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac

@@ -1,5 +1,6 @@
 # @DESC: test command
 # @SWITCH: v,,Enable verbose debugging
+# @PARAM: target_env,The name of the target server environment
 
 . $DOTFILES/common.sh
 
