@@ -70,4 +70,4 @@ fi
 #unset_startup "script" 
 
 
-#read_template "test"
+#get_template "test"

@@ -515,16 +515,14 @@ unset_startup() {
     ' "$_s_target" > "$_s_tmp" && mv "$_s_tmp" "$_s_target"
 }
 
-read_template() {
+get_template() {
     _s_src_file="$(dirname "$0")/$1.template"
-    echo "Reading template from $_s_src_file"
     [ -f "$_s_src_file" ] || return 1
     
     # Read to global variable
     # The 'x' pattern guarantees trailing blank lines are preserved
     TEMPLATE=$(cat "$_s_src_file"; printf 'x')
     TEMPLATE="${TEMPLATE%x}"
-    printf "%s" "$TEMPLATE"
 }
 
 

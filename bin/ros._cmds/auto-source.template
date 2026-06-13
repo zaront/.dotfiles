@@ -1,0 +1,55 @@
+# Source ROS 2 setup scripts
+rossource() {
+    # 1. Dynamically find the first folder inside /opt/ros
+    local default_distro
+    default_distro=$(ls -1 /opt/ros 2>/dev/null | head -n 1)
+
+    # Fallback to a hardcoded string if /opt/ros is empty or doesn't exist
+    if [ -z "$default_distro" ]; then
+        default_distro="humble"
+    fi
+
+    # parse silent flag
+    local silent
+    if [ "$1" = "-s" ]; then
+        shift
+        silent=true
+    fi
+
+    # 2. Set variables based on parameters or defaults
+    local distro=${1:-$default_distro}
+    local ws_arg=$2
+
+    # 3. Source the core ROS 2 installation
+    if [ -f "/opt/ros/$distro/setup.bash" ]; then
+        source "/opt/ros/$distro/setup.bash"
+        if [ "$silent" != true ]; then
+            echo "Sourced ROS 2 $distro"
+        fi
+    else
+        echo "Error: ROS 2 $distro not found at /opt/ros/$distro"
+        return 1
+    fi
+
+    # 4. Source workspace based on argument or current directory
+    if [ -n "$ws_arg" ]; then
+        # Explicit path provided by user
+        if [ -f "$ws_arg/install/setup.bash" ]; then
+            source "$ws_arg/install/setup.bash"
+            if [ "$silent" != true ]; then
+                echo "Sourced workspace: $ws_arg"
+            fi
+        else
+            echo "Warning: Workspace not found at $ws_arg/install/setup.bash"
+        fi
+    elif [ -f "install/setup.bash" ]; then
+        # Fallback to current working directory
+        source "install/setup.bash"
+        echo "Sourced local workspace: $(pwd)"
+    fi
+}
+
+# auto-source ros2
+if [ -f "$DOTFILES/config/ros./auto-source.flag" ]; then
+    rossource -s
+fi
