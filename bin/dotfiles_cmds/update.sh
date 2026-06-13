@@ -1,5 +1,4 @@
-#! /bin/sh
-# desc: Update your .dotfiles to the latest version from github
+# @DESC: Update your .dotfiles to the latest version from github
 
 #if installed with git, pull the latest changes
 if [ -d "$DOTFILES/.git" ]; then

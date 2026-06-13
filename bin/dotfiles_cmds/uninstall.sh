@@ -1,5 +1,4 @@
-#! /bin/sh
-# desc: Uninstall .dotfiles
+# @DESC: Uninstall .dotfiles
 
 #confirm unistall
 echo "Are you sure you want to uninstall .dotfiles? (y/n)"

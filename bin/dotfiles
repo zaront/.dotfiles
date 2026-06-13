@@ -1,10 +1,10 @@
 #! /bin/sh
-# desc: Enable dotfile features
+# @DESC: Manage dotfiles installation
 
 . $DOTFILES/common.sh
 
+continue_after_showing_help=true 
 run_subcommand "$0" "$@"
-
 
 # list additional commands in the bin directory
 if [ -d "$DOTFILES/bin" ]; then
@@ -21,12 +21,9 @@ if [ -d "$DOTFILES/bin" ]; then
                 continue
             fi
             # show each commands description if it exists
-            desc=$(grep -m 1 "^# desc:" "$cmd" | sed 's/# desc: //')
-            if [ -n "$desc" ]; then
-                echo "  $(basename "$cmd") - $desc"
-            else
-                echo "  $(basename "$cmd")"
-            fi
+            header=$(sed -n '/^#/p; /^[^#]/q' "$cmd" 2>/dev/null || true)
+            desc=$(echo "$header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
+            printf "  %-15s %s\n" "$(basename "$cmd")" "$desc"
         fi
     done
 fi  

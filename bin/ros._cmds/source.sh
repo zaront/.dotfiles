@@ -1,4 +1,4 @@
-# desc: Source ROS2 & workspace
+# @DESC: Source ROS2 & workspace
 
 # 1. Dynamically find the first folder inside /opt/ros
 default_distro=$(ls -1 /opt/ros 2>/dev/null | head -n 1)

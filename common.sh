@@ -32,7 +32,7 @@ _show_help() {
     # print usage
     printf -- "Usage:  %s" "$_p_base_name"
     # switches (format: short,long,description)
-    echo "$_p_header" | grep "@SWITCH:" | while read -r _p_line; do
+    echo "$_p_switch_lines" | while read -r _p_line; do
         _p_clean=$(echo "$_p_line" | sed 's/.*@SWITCH: //')
         _p_short=$(echo "$_p_clean" | cut -d, -f1)
         _p_long=$(echo "$_p_clean" | cut -d, -f2)
@@ -43,7 +43,7 @@ _show_help() {
         fi
     done
     # options (format: short,long,description[,required])
-    echo "$_p_header" | grep "@OPTION:" | while read -r _p_line; do
+    echo "$_p_option_lines" | while read -r _p_line; do
         _p_clean=$(echo "$_p_line" | sed 's/.*@OPTION: //')
         _p_short=$(echo "$_p_clean" | cut -d, -f1)
         _p_long=$(echo "$_p_clean" | cut -d, -f2)
@@ -76,16 +76,18 @@ _show_help() {
         fi
     fi
     # parameters
-    echo "$_p_param_lines" | while read -r _p_line; do
-        _p_clean=$(echo "$_p_line" | sed 's/.*@PARAM: //')
-        _p_param_name=$(echo "$_p_clean" | cut -d, -f1)
-        case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
-        if [ "$_p_req" = "required" ]; then
-            printf -- " <%s>" "$_p_param_name"
-        else
-            printf -- " [<%s>]" "$_p_param_name"
-        fi
-    done
+    if [ -n "$_p_param_lines" ]; then
+        echo "$_p_param_lines" | while read -r _p_line; do
+            _p_clean=$(echo "$_p_line" | sed 's/.*@PARAM: //')
+            _p_param_name=$(echo "$_p_clean" | cut -d, -f1)
+            case "$_p_line" in *,required*) _p_req="required" ;; *) _p_req="optional" ;; esac
+            if [ "$_p_req" = "required" ]; then
+                printf -- " <%s>" "$_p_param_name"
+            else
+                printf -- " [<%s>]" "$_p_param_name"
+            fi
+        done
+    fi
     printf -- "\n"
 
     # print description
@@ -99,10 +101,9 @@ _show_help() {
         printf "\nCommands:\n"
         for _p_s_file in "$_p_cmds_dir"/*.sh; do
             if [ -f "$_p_s_file" ]; then
-                _p_cmd_name="$(basename "$_p_s_file" .sh)"
-                _p_s_desc=$(sed -n "s/.*@DESC: //p" "$_p_s_file" 2>/dev/null)
-                [ -z "$_p_s_desc" ] && _p_s_desc=""
-                printf "  %-15s %s\n" "$_p_cmd_name" "$_p_s_desc"
+                _p_s_header=$(sed -n '/^#/p; /^[^#]/q' "$_p_s_file" 2>/dev/null || true)
+                _p_s_desc=$(echo "$_p_s_header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
+                printf "  %-15s %s\n" "$(basename "$_p_s_file" .sh)" "$_p_s_desc"
             fi
         done
     fi
@@ -155,6 +156,7 @@ _show_help() {
     fi
 }
 
+
 parse_options() {
     _p_target_file="$1"
     shift
@@ -179,7 +181,9 @@ parse_options() {
     # show help if there are subcommands and no arguments
     if [ -d "$_p_cmds_dir" ] && [ "$#" -eq 0 ]; then
         _show_help "$_p_target_file" "$_p_header"
-        exit 0
+        if [ -z "$continue_after_showing_help" ]; then
+            exit 0
+        fi
     fi
 
     # CLI argument processing loop
@@ -222,7 +226,9 @@ parse_options() {
                         if [ -z "$_p_command_path" ]; then
                             # no command found - show root help
                             _show_help "$_p_target_file" "$_p_header"
-                            exit 0
+                            if [ -z "$continue_after_showing_help" ]; then
+                                exit 0
+                            fi
                         else
                             # command already found - pass -h/--help to subcommand
                             _p_command_args="${_p_command_args}${_p_command_args:+
@@ -338,6 +344,7 @@ exec_command() {
     # run the command
     exec sh "$_p_command_path" "$@"
 }
+
 
 run_subcommand() {
   shift

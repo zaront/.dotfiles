@@ -1,5 +1,5 @@
 #! /bin/bash
-# desc: Ros2 helper
+# @DESC: ROS Helper
 
 . $DOTFILES/common.sh
 

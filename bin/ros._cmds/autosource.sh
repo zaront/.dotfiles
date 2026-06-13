@@ -1,4 +1,4 @@
-# desc: Toggle automaticly sourcing ros in each terminal
+# @DESC: Toggle automaticly sourcing ros in each terminal
 
 flag_file="$HOME/.ros_autosource_enabled"
 
