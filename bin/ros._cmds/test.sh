@@ -20,23 +20,28 @@ if [ -n "$target_env" ]; then
     echo "Target environment: $target_env"
 fi
 
-BASE_DIR=$DOTFILES/config
 
 
-VALUE=$(get_ini_value "test" "test" "$BASE_DIR/test.ini")
-echo $VALUE
-set_ini_value "test" "test" "test" "$BASE_DIR/test.ini"
 
-VALUE=$(get_ini_value "test" "test" "$BASE_DIR/test.ini")
-echo $VALUE
+key="test/test2/test3"
 
-set_flag "test"
+
+
+#set_flag "test"
 if get_flag "test"; then
-    echo "test flag is set"
+    echo "set flag"
 fi
 
-# unset_flag "test"
-if get_flag "test"; then
-    echo "test flag is set"
+
+if ! get_flag "test"; then
+    echo "removed flag"
 fi
 
+
+
+VALUE=$(get_value "$key")
+echo prev: $VALUE
+
+set_value "$key" ""
+VALUE=$(get_value "$key")
+echo new: $VALUE

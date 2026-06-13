@@ -24,7 +24,7 @@
 # @OPTION format: [short],[long],description[,required]
 # @PARAM format: name,description[,required]
 
-_show_help() {
+_p_show_help() {
     _p_file_target="$1"
     _p_header_data="$2"
     _p_base_name=$(basename "$_p_file_target" .sh)
@@ -180,7 +180,7 @@ parse_options() {
 
     # show help if there are subcommands and no arguments
     if [ -d "$_p_cmds_dir" ] && [ "$#" -eq 0 ]; then
-        _show_help "$_p_target_file" "$_p_header"
+        _p_show_help "$_p_target_file" "$_p_header"
         if [ -z "$continue_after_showing_help" ]; then
             exit 0
         fi
@@ -225,7 +225,7 @@ parse_options() {
                     if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
                         if [ -z "$_p_command_path" ]; then
                             # no command found - show root help
-                            _show_help "$_p_target_file" "$_p_header"
+                            _p_show_help "$_p_target_file" "$_p_header"
                             if [ -z "$continue_after_showing_help" ]; then
                                 exit 0
                             fi
@@ -341,8 +341,8 @@ exec_command() {
     set +f
     IFS=$_p_prev_ifs
 
-    # run the command
-    exec sh "$_p_command_path" "$@"
+    # run the command - include the root command
+    DOTFILES_CMD="${DOTFILES_CMD:-$_p_target_file}" exec sh "$_p_command_path" "$@"
 }
 
 
@@ -360,18 +360,32 @@ run_subcommand() {
 ################
 
 
-# Read a value from a specific section and key in an INI file
-# Usage: get_ini_value "section" "key" "/path/to/file.ini"
-get_ini_value() {
-    SECTION="$1"
-    KEY="$2"
-    FILE="$3"
+_i_get_dir() {
+    printf "$DOTFILES/config/$(basename "$DOTFILES_CMD")"
+}
 
-    # Gracefully exit if the file does not exist (returns nothing, exit code 0)
-    [ -f "$FILE" ] || return 0
+_i_parse_key() {
+    _i_key="$1"
+    _i_val="$2"
 
-    # Awk loops lines: finds the [section], then returns the value for the matching key
-    awk -F= -v sec="[$SECTION]" -v k="$KEY" '
+    # parse the key
+    IFS='/' read -r _i_file _i_section _i_key <<EOF
+$_i_key
+EOF
+    _i_file="$(_i_get_dir)/${_i_file}.ini"
+}
+
+
+# Usage:  get_value "ros/default/distro"
+# the key format is: [filename]/[section]/[key]
+get_value() {
+    _i_parse_key "$1" "$2"
+
+    # validate file
+    [ -f "$_i_file" ] || return 0
+
+    # read value
+    awk -F= -v sec="[$_i_section]" -v k="$_i_key" '
         $0 ~ "^\\[" { in_sec = ($0 == sec || $0 == "["sec"]") }
         in_sec && $1 ~ "^[ \t]*"k"[ \t]*$" {
             val = substr($0, length($1) + 2)
@@ -379,30 +393,27 @@ get_ini_value() {
             print val
             exit
         }
-    ' "$FILE"
+    ' "$_i_file"
 }
 
-# Update or insert a key-value pair under a specific section in an INI file
-# Usage: set_ini_value "section" "key" "value" "/path/to/file.ini"
-set_ini_value() {
-    SECTION="$1"
-    KEY="$2"
-    VAL="$3"
-    FILE="$4"
 
-    # Automatically create the parent directory structure if it doesn't exist
-    DIR_NAME=$(dirname "$FILE")
-    mkdir -p "$DIR_NAME"
+# Usage:  set_value "ros/default/distro" "humble"
+# the key format is: [filename]/[section]/[key]
+set_value() {
+    echo CMD: $DOTFILES_CMD
+    _i_parse_key "$1" "$2"
 
-    # Safely create/touch the file if it doesn't exist
-    touch "$FILE"
+    # insure the directory and file exist
+    _i_dir="${_i_file%/*}"
+    mkdir -p "$_i_dir"
+    touch "$_i_file"
 
-    TMP_FILE=$(mktemp)
-    
-    # Awk updates the file streaming line by line into a temporary file
-    awk -F= -v sec="[$SECTION]" -v k="$KEY" -v v="$VAL" '
+    # copy to temp file
+    _i_temp="${_i_file}.tmp.$$.$(date +%s)"
+
+    # update the temp file and replace
+    awk -F= -v sec="[$_i_section]" -v k="$_i_key" -v v="$_i_val" '
         BEGIN { found_sec = 0; found_key = 0 }
-        
         $0 ~ "^[ \t]*\\[" {
             if (found_sec && !found_key) {
                 print k "=" v
@@ -410,15 +421,12 @@ set_ini_value() {
             }
             found_sec = ($0 == sec || $0 == "["sec"]" || $0 ~ "^\\[" substr(sec, 2, length(sec)-2) "\\]")
         }
-        
         found_sec && $1 ~ "^[ \t]*"k"[ \t]*$" {
             print k "=" v
             found_key = 1
             next
         }
-        
         { print $0 }
-        
         END {
             if (!found_sec && !found_key) {
                 print ""
@@ -428,22 +436,22 @@ set_ini_value() {
                 print k "=" v
             }
         }
-    ' "$FILE" > "$TMP_FILE" && mv "$TMP_FILE" "$FILE"
+    ' "$_i_file" > "$_i_temp" && mv "$_i_temp" "$_i_file"
 }
 
 
 
 # Check if a flag file exists
 get_flag() {
-  [ -f "$DOTFILES/config/${1}.flag" ]
+    [ -f "$(_i_get_dir)/${1}.flag" ]
 }
 
 # Create a flag file and its parent directories if they don't exist
 set_flag() {
-  mkdir -p "$DOTFILES/config"
-  touch "$DOTFILES/config/${1}.flag"
+  mkdir -p "$(_i_get_dir)"
+  touch "$(_i_get_dir)/${1}.flag"
 }
 
 unset_flag() {
-  rm -f "$DOTFILES/config/${1}.flag"
+  rm -f "$(_i_get_dir)/${1}.flag"
 }
