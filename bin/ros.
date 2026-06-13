@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/sh
 # @DESC: ROS Helper
 
 . $DOTFILES/common.sh
