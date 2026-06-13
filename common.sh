@@ -457,52 +457,62 @@ unset_flag() {
 
 
 
-
 _s_file="$DOTFILES/config/startup.sh"
 
-get_startup() { 
-    [ -f "$_s_file" ] || return 1
+get_startup() {
+    _s_key="$1"
+    # Fall back to default path if the optional third argument isn't provided
+    _s_target="${2:-$_s_file}"
+    [ -f "$_s_target" ] || return 1
     
-    awk -v block="$1" '
+    # Check for the presence of the unique key marker in the file footprint
+    awk -v marker="# >>> START: ${_s_key} >>>" '
         { file_content = file_content $0 "\n" }
-        END { exit (index(file_content, block) ? 0 : 1) }
-    ' "$_s_file"
+        END { exit (index(file_content, marker) ? 0 : 1) }
+    ' "$_s_target"
 }
 
-set_startup() { 
+set_startup() {
+    _s_key="$1"
+    _s_block="$2"
+    _s_target="${3:-$_s_file}"
+
     # validate
-    _s_dir="${_s_file%/*}"
+    _s_dir="${_s_target%/*}"
     mkdir -p "$_s_dir"
-    touch "$_s_file"
+    touch "$_s_target"
 
-    # add the startup script
-    if ! get_startup "$1"; then 
-        printf '%s\n' "$1" >> "$_s_file" 
-    fi 
+    # Automatically drop the old block matching this key to allow for updates
+    unset_startup "$_s_key" "$_s_target"
+
+    # add the startup script wrapped in structured comment blocks with 2 trailing blank lines
+    printf '# >>> START: %s >>>\n%s\n# <<< END: %s <<<\n\n\n' "$_s_key" "$_s_block" "$_s_key" >> "$_s_target"
 }
 
-unset_startup() { 
+unset_startup() {
+    _s_key="$1"
+    _s_target="${2:-$_s_file}"
+
     # validate
-    [ -f "$_s_file" ] || return 0
+    [ -f "$_s_target" ] || return 0
     
     # remove the startup script
-    _s_tmp="${_s_file}.tmp.$$.$(date +%s)"
-    awk -v block="$1" '
-        BEGIN {
-            # Add a trailing newline to the block to match the printf format on disk
-            block = block "\n"
-        }
+    _s_tmp="${_s_target}.tmp.$$.$(date +%s)"
+    awk -v key="$_s_key" '
+        # Read the entire file into a single string variable
         { file_content = file_content $0 "\n" }
+        
         END {
-            pos = index(file_content, block)
-            if (pos > 0) {
-                before = substr(file_content, 1, pos - 1)
-                after = substr(file_content, pos + length(block))
-                file_content = before after
-            }
+            # Target the block and the exact 2 trailing blank lines (\n\n) following it
+            target = "# >>> START: " key " >>>\n.*\n# <<< END: " key " <<<\n\n\n"
+            
+            # Delete the matching chunk from the text string
+            gsub(target, "", file_content)
+            
+            # Output the remaining content
             printf "%s", file_content
         }
-    ' "$_s_file" > "$_s_tmp" && mv "$_s_tmp" "$_s_file"
+    ' "$_s_target" > "$_s_tmp" && mv "$_s_tmp" "$_s_target"
 }
 
 read_template() {
