@@ -603,7 +603,7 @@ get_system_info() {
         *proot*|*PROOT*)
             CONTAINER="proot"
             ;;
-        *termux*|*Android*|*android*)
+        *termux*|*Android*|*android*|*(proot@termux)*)
             ENVIRONMENT="termux"
             ;;
         *)
