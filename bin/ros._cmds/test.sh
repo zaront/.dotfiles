@@ -54,7 +54,7 @@ echo new: $VALUE
 if get_startup "echo startup test"; then
     echo "Startup command is set"
 fi
-unset_startup "echo startup test"
+#unset_startup "echo startup test"
 
 
 script='
@@ -67,4 +67,7 @@ fi
 # set_startup "$script"
 # set_startup "$script"
 # set_startup "$script"
-unset_startup "$script"
+# unset_startup "$script"
+
+
+read_template "test"
