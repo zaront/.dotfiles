@@ -3,6 +3,7 @@
 # @PARAM: target_env,The name of the target server environment
 
 . $DOTFILES/common.sh
+set_flag "tesfFlag"
 
 parse_options "$0" "$@"
 
@@ -45,3 +46,25 @@ echo prev: $VALUE
 set_value "$key" ""
 VALUE=$(get_value "$key")
 echo new: $VALUE
+
+# set_startup "echo startup test"
+# set_startup "echo startup test"
+# set_startup "echo startup test"
+# set_startup "echo startup test"
+if get_startup "echo startup test"; then
+    echo "Startup command is set"
+fi
+unset_startup "echo startup test"
+
+
+script='
+echo "Starting my system setup..."
+if [ -d "$HOME/bin" ]; then
+    echo "Bin path exists."
+fi
+'
+
+# set_startup "$script"
+# set_startup "$script"
+# set_startup "$script"
+unset_startup "$script"

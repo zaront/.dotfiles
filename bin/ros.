@@ -2,5 +2,4 @@
 # @DESC: ROS Helper
 
 . $DOTFILES/common.sh
-
 run_subcommand "$0" "$@"

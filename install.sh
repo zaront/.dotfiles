@@ -28,7 +28,9 @@ else
 fi
 
 
+##################
 # INSTALL DOTFILES
+##################
 
 # if on bash add sourcing startup.sh to .bashrc if it doesn't already exist
 if [ -f "$HOME/.bashrc" ]; then

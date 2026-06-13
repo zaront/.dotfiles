@@ -3,6 +3,8 @@
 # Pure POSIX compliant.
 # Works in any standard 'sh' shell environment.
 
+# will always be the root command
+DOTFILES_CMD="${DOTFILES_CMD:-$0}"
 
 ##########################
 # Parse options & commands
@@ -341,8 +343,8 @@ exec_command() {
     set +f
     IFS=$_p_prev_ifs
 
-    # run the command - include the root command
-    DOTFILES_CMD="${DOTFILES_CMD:-$_p_target_file}" exec sh "$_p_command_path" "$@"
+    # run the command - include the root command in env
+    DOTFILES_CMD="$DOTFILES_CMD" exec sh "$_p_command_path" "$@"
 }
 
 
@@ -360,9 +362,7 @@ run_subcommand() {
 ################
 
 
-_i_get_dir() {
-    printf "$DOTFILES/config/$(basename "$DOTFILES_CMD")"
-}
+_i_config_dir="$DOTFILES/config/$(basename "$DOTFILES_CMD")"
 
 _i_parse_key() {
     _i_key="$1"
@@ -372,7 +372,7 @@ _i_parse_key() {
     IFS='/' read -r _i_file _i_section _i_key <<EOF
 $_i_key
 EOF
-    _i_file="$(_i_get_dir)/${_i_file}.ini"
+    _i_file="$_i_config_dir/${_i_file}.ini"
 }
 
 
@@ -400,7 +400,6 @@ get_value() {
 # Usage:  set_value "ros/default/distro" "humble"
 # the key format is: [filename]/[section]/[key]
 set_value() {
-    echo CMD: $DOTFILES_CMD
     _i_parse_key "$1" "$2"
 
     # insure the directory and file exist
@@ -443,15 +442,65 @@ set_value() {
 
 # Check if a flag file exists
 get_flag() {
-    [ -f "$(_i_get_dir)/${1}.flag" ]
+    [ -f "_i_config_dir/${1}.flag" ]
 }
 
 # Create a flag file and its parent directories if they don't exist
 set_flag() {
-  mkdir -p "$(_i_get_dir)"
-  touch "$(_i_get_dir)/${1}.flag"
+    mkdir -p "$_i_config_dir"
+    touch "$_i_config_dir/${1}.flag"
 }
 
 unset_flag() {
-  rm -f "$(_i_get_dir)/${1}.flag"
+    rm -f "$_i_config_dir/${1}.flag"
+}
+
+
+
+
+_s_file="$DOTFILES/config/startup.sh"
+
+get_startup() { 
+    [ -f "$_s_file" ] || return 1
+    
+    awk -v block="$1" '
+        { file_content = file_content $0 "\n" }
+        END { exit (index(file_content, block) ? 0 : 1) }
+    ' "$_s_file"
+}
+
+set_startup() { 
+    # validate
+    _s_dir="${_s_file%/*}"
+    mkdir -p "$_s_dir"
+    touch "$_s_file"
+
+    # add the startup script
+    if ! get_startup "$1"; then 
+        printf '%s\n' "$1" >> "$_s_file" 
+    fi 
+}
+
+unset_startup() { 
+    # validate
+    [ -f "$_s_file" ] || return 0
+    
+    # remove the startup script
+    _s_tmp="${_s_file}.tmp.$$.$(date +%s)"
+    awk -v block="$1" '
+        BEGIN {
+            # Add a trailing newline to the block to match the printf format on disk
+            block = block "\n"
+        }
+        { file_content = file_content $0 "\n" }
+        END {
+            pos = index(file_content, block)
+            if (pos > 0) {
+                before = substr(file_content, 1, pos - 1)
+                after = substr(file_content, pos + length(block))
+                file_content = before after
+            }
+            printf "%s", file_content
+        }
+    ' "$_s_file" > "$_s_tmp" && mv "$_s_tmp" "$_s_file"
 }

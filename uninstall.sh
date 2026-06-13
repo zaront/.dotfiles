@@ -6,7 +6,9 @@ if [ -z "$DOTFILES" ]; then
     exit 1
 fi
 
+####################
 # UNINSTALL DOTFILES
+####################
 
 # if on bash remove sourcing startup.sh from .bashrc if it exists
 if [ -f "$HOME/.bashrc" ]; then

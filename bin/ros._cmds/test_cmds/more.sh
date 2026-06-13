@@ -4,8 +4,8 @@
 # @PARAM: target_env,The name of the target server environment
 # @PARAM: log_dir,Path to write transaction logs
 
-# desc: more testing
 . "$HOME/.dotfiles/common.sh"
+set_flag "tesfFlag"
 
 parse_options "$0" "$@"
 
