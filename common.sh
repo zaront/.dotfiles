@@ -577,11 +577,42 @@ prompt_choice() {
 }
 
 
-
-
-
 prompt_confirm() {
     printf '%s [Y/n] ' "$1"
     read -r REPLY
     [ -z "$REPLY" ] || [ "$REPLY" = 'y' ] || [ "$REPLY" = 'Y' ] && REPLY="y" || REPLY="n"
+}
+
+
+
+
+################
+# System Info
+################
+
+get_system_info() {
+    _si_info=$(
+        uname -a
+        [ -f /etc/os-release ] && cat /etc/os-release
+        [ -f /proc/version ] && cat /proc/version
+    )
+    case "$_si_info" in
+        *WSL2*|*microsoft*)
+            ENVIRONMENT="wsl2"
+            ;;
+        *proot*|*PROOT*)
+            CONTAINER="proot"
+            ;;
+        *termux*|*Android*|*android*)
+            ENVIRONMENT="termux"
+            ;;
+        *)
+            ENVIRONMENT="metal"
+            ;;
+    esac
+    [ -f /.dockerenv ] && CONTAINER="docker"
+    [ -z "$CONTAINER" ] && CONTAINER="none"
+    ARCH=$(uname -m)
+    OS=$(echo "$_si_info" | sed -n 's/^ID=//p' | tr -d '"'\')
+    VERSION=$(echo "$_si_info" | sed -n 's/^VERSION_ID=//p' | tr -d '"'\')
 }
