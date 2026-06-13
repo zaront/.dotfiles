@@ -47,14 +47,14 @@ set_value "$key" ""
 VALUE=$(get_value "$key")
 echo new: $VALUE
 
-set_startup "test" "echo startup test55" "$_s_file.2.sh"
+set_startup "test" "echo startup test55" 
 set_startup "test" "echo startup test"
 set_startup "test" "echo startup test"
 set_startup "test" "echo startup test2"
-if get_startup "test" "$_s_file.2.sh"; then
+if get_startup "test"; then
     echo "Startup command is set"
 fi
-unset_startup "test" "$_s_file.2.sh"
+unset_startup "test" 
 
 
 script='

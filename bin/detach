@@ -1,0 +1,48 @@
+#! /bin/sh
+# @DESC: Detach jobs from the shell
+
+# Check for help switches (-h or --help)
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo "Detach - Completely isolate processes from the current Bash shell"
+    echo ""
+    echo "Usage:"
+    echo "  detach [command]    - Launch a brand new GUI/process completely isolated."
+    echo "  detach [job-number] - Resume and detach a specific job number (e.g., detach 2)."
+    echo "  detach              - Resume and detach the most recent Ctrl+Z job."
+    echo "  detach -h | --help  - Display this help menu."
+    echo ""
+    echo "Examples:"
+    echo "  detach vlc movie.mp4"
+    echo "  detach 1"
+    echo "  vlc movie.mp4  ->  (Ctrl+Z)  ->  detach"
+    return 0
+fi
+
+# Case 1: No arguments provided (target most recent job)
+if [ $# -eq 0 ]; then
+    if ! jobs % >/dev/null 2>&1; then
+        echo "Error: There is no active or stopped background job to detach."
+        echo "Type 'detach --help' for usage instructions and examples."
+        return 1
+    fi
+    
+    bg >/dev/null 2>&1
+    disown
+    echo "Resumed and detached the most recent background job."
+
+# Case 2: A single numeric argument provided (target specific job ID)
+elif [ $# -eq 1 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
+    if ! jobs %"$1" >/dev/null 2>&1; then
+        echo "Error: Job %$1 does not exist."
+        echo "Type 'jobs' to see your active job numbers."
+        return 1
+    fi
+    
+    bg %"$1" >/dev/null 2>&1
+    disown %"$1"
+    echo "Resumed and detached job %$1."
+
+# Case 3: Text arguments provided (launch a brand new process)
+else
+    setsid "$@" >/dev/null 2>&1 &
+fi
