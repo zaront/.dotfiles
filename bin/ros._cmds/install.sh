@@ -51,7 +51,7 @@ fi
 
 
 install_humble() {
-
+    echo "Installing ROS 2 Humble"
 }
 
 
