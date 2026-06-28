@@ -31,7 +31,7 @@ if [ "$ENVIRONMENT" = "termux" ]; then
         # shodown ssh server
         echo "shutdown ssh server"
         pkill sshd
-        [ command -v termux-wake-unlock > /dev/null 2>&1 ] && termux-wake-unlock
+        termux-wake-unlock
     else
         # start ssh server
         ip=$(termux-wifi-connectioninfo | grep -oP '"ip":\s*"\K[^"]+')
@@ -43,7 +43,7 @@ if [ "$ENVIRONMENT" = "termux" ]; then
         echo "port: 8022"
         echo "to connect run 'ssh $user@$ip -p 8022' from another client"
         sshd
-        [ command -v termux-wake-lock > /dev/null 2>&1 ] && termux-wake-lock
+        termux-wake-lock
     fi
     exit 0
 fi
