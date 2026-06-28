@@ -10,7 +10,7 @@ if [ "$ENVIRONMENT" = "termux" ]; then
     # insure sshd installed
     if ! command -v sshd > /dev/null 2>&1; then
         echo "sshd command required, but not found"
-        confirm "install openssh"
+        prompt_confirm "install openssh"
         if [ "$REPLY" != "n" ]; then
             exit 1
         fi
@@ -20,7 +20,7 @@ if [ "$ENVIRONMENT" = "termux" ]; then
     # insure termux-wifi-connectioninfo installed
     if ! command -v termux-wifi-connectioninfo > /dev/null 2>&1; then
         echo "termux-wifi-connectioninfo command required, but not found"
-        confirm "install termux-wifi-connectioninfo"
+        prompt_confirm "install termux-wifi-connectioninfo"
         if [ "$REPLY" != "n" ]; then
             exit 1
         fi
