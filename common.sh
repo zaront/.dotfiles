@@ -592,10 +592,8 @@ prompt_confirm() {
 
 get_system_info() {
     # validate 
-    if [ -z "${ENVIRONMENT}" ]; then
-        return 0
-    fi
-    
+    [ ! -z "${ENVIRONMENT}" ] && return 0
+
     _si_info=$(
         uname -a
         [ -f /etc/os-release ] && cat /etc/os-release
