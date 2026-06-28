@@ -1,26 +1,52 @@
-# @DESC: Toggle a server on or off
+# @DESC: Toggle a server on or off - for termux
 
 . $DOTFILES/common.sh
 parse_options "$0" "$@"
 
-# validate ssh installed
-if ! command -v sshd > /dev/null 2>&1; then
-    echo "sshd command not found"
-    echo "please install openssh"
-    exit 1
+get_system_info
+
+if [ "$ENVIRONMENT" = "termux" ]; then
+
+    # insure sshd installed
+    if ! command -v sshd > /dev/null 2>&1; then
+        echo "sshd command required, but not found"
+        confirm "install openssh"
+        if [ "$REPLY" != "n" ]; then
+            exit 1
+        fi
+        pkg install openssh
+    fi
+
+    # insure termux-wifi-connectioninfo installed
+    if ! command -v termux-wifi-connectioninfo > /dev/null 2>&1; then
+        echo "termux-wifi-connectioninfo command required, but not found"
+        confirm "install termux-wifi-connectioninfo"
+        if [ "$REPLY" != "n" ]; then
+            exit 1
+        fi
+        pkg install termux-api
+    fi
+
+    if ps -A -o comm= | grep -x "sshd" > /dev/null 2>&1; then
+        # shodown ssh server
+        echo "shutdown ssh server"
+        pkill sshd
+        [ command -v termux-wake-unlock > /dev/null 2>&1 ] && termux-wake-unlock
+    else
+        # start ssh server
+        ip=${termux-wifi-connectioninfo | grep -oP '"ip":\s*"\K[^"]+')
+        user=$(whoami)
+        echo "server on - run again to turn off."
+        echo "Note: this will run in the background even when the app is quit."
+        echo "user: $user"
+        echo "host: $ip"
+        echo "port: 8022"
+        echo "to connect run 'ssh $user@$ip -p 8022' from another client"
+        sshd
+        [ command -v termux-wake-lock > /dev/null 2>&1 ] && termux-wake-lock
+    fi
+    exit 0
 fi
 
-if ps -A -o comm= | grep -x "sshd" > /dev/null 2>&1; then
-    # sshd is running
-    echo "shutdown ssh server"
-    pkill sshd
-    [ command -v termux-wake-unlock > /dev/null 2>&1 ] && termux-wake-unlock
-else
-    # sshd is not running
-    echo "server on - run again to turn off."
-    echo "Note: this will run in the background even when the app is quit."
-    echo user: $(whoami)
-    echo pass: <to do>
-    sshd
-    [ command -v termux-wake-lock > /dev/null 2>&1 ] && termux-wake-lock
-fi
+echo "this only runs on termux"
+exit 1
