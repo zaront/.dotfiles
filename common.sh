@@ -596,29 +596,16 @@ get_system_info() {
         [ -f /etc/os-release ] && cat /etc/os-release
         [ -f /proc/version ] && cat /proc/version
     )
-    # environment
     case "$_si_info" in
-        *WSL2*|*microsoft*)
-            ENVIRONMENT="wsl2"
-            ;;
-        *termux*|*Android*|*android*)
-            ENVIRONMENT="termux"
-            ;;
-        *)
-            ENVIRONMENT="metal"
-            ;;
+        *WSL2*|*microsoft*) ENVIRONMENT="wsl2" ;;
+        *termux*|*Android*|*android*) ENVIRONMENT="termux" ;;
+        *) ENVIRONMENT="metal" ;;
     esac
-    # container
     case "$_si_info" in
-        *proot*|*PROOT*|*PRoot*)
-            CONTAINER="proot"
-            ;;
-        *)
-            CONTAINER="none"
-            ;;
+        *proot*|*PROOT*|*PRoot*) CONTAINER="proot" ;;
+        *) CONTAINER="none" ;;
     esac
     [ -f /.dockerenv ] && CONTAINER="docker"
-    
     ARCH=$(uname -m)
     OS=$(echo "$_si_info" | sed -n 's/^ID=//p' | tr -d '"'\')
     VERSION=$(echo "$_si_info" | sed -n 's/^VERSION_ID=//p' | tr -d '"'\')
