@@ -1,4 +1,4 @@
-# @DESC: Toggle a server on or off - for termux
+# @DESC: Toggle a server on or off (termux only)
 
 . $DOTFILES/common.sh
 parse_options "$0" "$@"
