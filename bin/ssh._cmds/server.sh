@@ -34,7 +34,7 @@ if [ "$ENVIRONMENT" = "termux" ]; then
         [ command -v termux-wake-unlock > /dev/null 2>&1 ] && termux-wake-unlock
     else
         # start ssh server
-        ip=${termux-wifi-connectioninfo | grep -oP '"ip":\s*"\K[^"]+')
+        ip=$(termux-wifi-connectioninfo | grep -oP '"ip":\s*"\K[^"]+')
         user=$(whoami)
         echo "server on - run again to turn off."
         echo "Note: this will run in the background even when the app is quit."
