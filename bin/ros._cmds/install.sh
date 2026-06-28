@@ -24,7 +24,7 @@ esac
 get_system_info
 if [ "$OS" != "ubuntu" ]; then
     echo "ROS 2 $distro is only supported on Ubuntu:${required_version}"
-    if [ "$ENVIORMENT" = "termux" ]; then
+    if [ "$ENVIRONMENT" = "termux" ]; then
         echo "Your on termux"
         echo "You can install Ubuntu on Termux with proot-distro"
         echo "  pkg install proot-distro"
