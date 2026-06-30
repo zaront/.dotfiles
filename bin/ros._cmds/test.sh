@@ -2,4 +2,6 @@
 . $DOTFILES/common.sh
 
 get_system_info
-echo "System info: $ENVIRONMENT, $CONTAINER, $ARCH, $OS, $VERSION"
+print_error "System info: $ENVIRONMENT, $CONTAINER, $ARCH, $OS, $VERSION"
+echo $TXT_OK this is OK
+printf "  ${TXT_BULLET} This is a test\n"

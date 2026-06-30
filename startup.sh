@@ -7,7 +7,7 @@ export PATH="$DOTFILES/bin:$PATH"
 
 # add support for bash completion
 if [ -n "$BASH_VERSION" ]; then
-    . "$DOTFILES/bash_completion.sh"
+    . "$DOTFILES/bash_completion.bash"
 fi
 
 
