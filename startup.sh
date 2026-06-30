@@ -1,8 +1,9 @@
 # run at the start of a new shell
 
+# set dotfiles directory - using existing path, first parmeter, or default home path
+export DOTFILES="${1:-${DOTFILES:-$HOME/.dotfiles}}"
 # add bin to path
-export DOTFILES="$HOME/.dotfiles"
-export PATH="$DOTFILES/bin:$PATH"
+export PATH="$PATH:$DOTFILES/bin"
 
 
 # add support for bash completion
