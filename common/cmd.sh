@@ -7,6 +7,8 @@
 [ -n "$_cmd_sourced" ] && return 0
 _cmd_sourced=1
 
+. $DOTFILES/common/tui.sh
+
 # EXAMPLE METADATA: - should be added to the top of the script
 
 # @DESC: My custom configuration script.

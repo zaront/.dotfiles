@@ -9,7 +9,6 @@ _tui_sourced=1
 
 
 # set the NO_COLOR & NO_EMOJI flag
-_tui_current_locale="${LC_ALL:-${LC_CTYPE:-${LANG}}}"
 # not connected to terminal
 if [ ! -t 1 ]; then
     NO_COLOR=1
@@ -28,31 +27,30 @@ else
     # no emoji support
     if [ -z "$NO_EMOJI" ]; then
         _tui_emoji_ok=0
-        case "$_tui_current_locale" in
-            *UTF-8*|*utf8*)
-                # emoji terminals
-                case "$TERM_PROGRAM" in
-                    Apple_Terminal|iTerm.app|vscode|WarpTerminal) _tui_emoji_ok=1 ;;
+        # supports UTF-8
+        if [ "$(printf '€' | wc -m)" -eq 1 ]; then
+            # emoji terminals
+            case "$TERM_PROGRAM" in
+                Apple_Terminal|iTerm.app|vscode|WarpTerminal) _tui_emoji_ok=1 ;;
+            esac
+            # Windows Terminal
+            if [ -n "$WT_SESSION" ]; then
+                _tui_emoji_ok=1
+            fi
+            # Check general terminal types if program signatures didn't match
+            if [ "$_tui_emoji_ok" -eq 0 ]; then
+                case "$TERM" in
+                    xterm-kitty|alacritty|foot|st*) _tui_emoji_ok=1 ;;
+                    *256color*|xterm*|screen*|tmux*) _tui_emoji_ok=1 ;;
                 esac
-                # Windows Terminal
-                if [ -n "$WT_SESSION" ]; then
-                    _tui_emoji_ok=1
-                fi
-                # Check general terminal types if program signatures didn't match
-                if [ "$_tui_emoji_ok" -eq 0 ]; then
-                    case "$TERM" in
-                        xterm-kitty|alacritty|foot|st*) _tui_emoji_ok=1 ;;
-                        *256color*|xterm*|screen*|tmux*) _tui_emoji_ok=1 ;;
-                    esac
-                fi
-                ;;
-        esac
+            fi
+        fi
         if [ "$_tui_emoji_ok" -eq 0 ]; then
             NO_EMOJI=1
         fi
     fi
 fi
-unset _tui_current_locale _tui_emoji_ok
+unset _tui_emoji_ok
 
 # setup colors
 if [ -z "$NO_COLOR" ]; then
