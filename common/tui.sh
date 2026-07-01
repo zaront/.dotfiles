@@ -27,12 +27,12 @@ else
     # no emoji support
     if [ -z "$NO_EMOJI" ]; then
         _tui_emoji_ok=0
+        # emoji terminals - intercepts and displays emoji even if the os doesn't support emojis
+        case "$TERM_PROGRAM" in
+            Apple_Terminal|iTerm.app|vscode|WarpTerminal) _tui_emoji_ok=1 ;;
+        esac
         # supports UTF-8
         if [ "$(printf '€' | wc -m)" -eq 1 ]; then
-            # emoji terminals
-            case "$TERM_PROGRAM" in
-                Apple_Terminal|iTerm.app|vscode|WarpTerminal) _tui_emoji_ok=1 ;;
-            esac
             # Windows Terminal
             if [ -n "$WT_SESSION" ]; then
                 _tui_emoji_ok=1
@@ -58,6 +58,8 @@ if [ -z "$NO_COLOR" ]; then
     TXT_GREEN='\033[0;32m'
     TXT_BLUE='\033[0;34m'
     TXT_YELLOW='\033[0;33m'
+    TXT_PURPLE='\033[0;35m'
+    TXT_GRAY='\033[0;90m'
     TXT_BOLD='\033[1m'
     TXT_DEFAULT='\033[0m'
 fi
@@ -80,22 +82,22 @@ else
     TXT_ERROR="${TXT_RED}${TXT_BOLD}[ERROR]${TXT_DEFAULT}"
     TXT_INFO="${TXT_BLUE}${TXT_BOLD}[INFO]${TXT_DEFAULT}"
     TXT_OK="${TXT_BOLD}[OK]${TXT_DEFAULT}"
-    TXT_READY="${TXT_BOLD}[READY]${TXT_DEFAULT}"
-    TXT_ATTENTION="${TXT_BOLD}[ATTENTION]${TXT_DEFAULT}"
+    TXT_READY="${TXT_BOLD}${TXT_YELLOW}[!]${TXT_DEFAULT}"
+    TXT_ATTENTION="${TXT_BOLD}${TXT_RED}[!]${TXT_DEFAULT}"
     TXT_BULLET="*"
 fi
 
 print_error() {
-    printf "${TXT_ERROR} ${TXT_RED}$1${TXT_DEFAULT}\n"
+    printf -- "${TXT_ERROR} ${TXT_RED}$1${TXT_DEFAULT}\n" >&2
 }
 print_success() {
-    printf "${TXT_SUCCESS} ${TXT_GREEN}$1${TXT_DEFAULT}\n"
+    printf -- "${TXT_SUCCESS} ${TXT_GREEN}$1${TXT_DEFAULT}\n"
 }
 print_warning() {
-    printf "${TXT_WARNING} ${TXT_YELLOW}$1${TXT_DEFAULT}\n"
+    printf -- "${TXT_WARNING} ${TXT_YELLOW}$1${TXT_DEFAULT}\n"
 }
 print_info() {
-    printf "${TXT_BLUE}$1${TXT_DEFAULT}\n"
+    printf -- "${TXT_BLUE}$1${TXT_DEFAULT}\n"
 }
 
 

@@ -6,9 +6,9 @@
 continue_after_showing_help=true 
 run_subcommand "$0" "$@"
 
-# list additional commands in the bin directory
+# list commands in the bin directory
 if [ -d "$DOTFILES/bin" ]; then
-    printf "\n%s\n" "Additional commands included with dotfiles:"
+    printf "\n\n${TXT_READY} ${TXT_BOLD}%s${TXT_DEFAULT}\n" "Commands included with dotfiles:"
     # list commands only executable files in the bin directory
     for cmd in "$DOTFILES/bin"/*; do
         if [ -x "$cmd" ]; then
@@ -23,7 +23,7 @@ if [ -d "$DOTFILES/bin" ]; then
             # show each commands description if it exists
             header=$(sed -n '/^#/p; /^[^#]/q' "$cmd" 2>/dev/null || true)
             desc=$(echo "$header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
-            printf "  %-15s %s\n" "$(basename "$cmd")" "$desc"
+            printf "  ${TXT_BLUE}%-15s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$(basename "$cmd")" "$desc"
         fi
     done
 fi  
