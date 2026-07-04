@@ -52,40 +52,45 @@ else
 fi
 unset _tui_emoji_ok
 
-# setup colors
-if [ -z "$NO_COLOR" ]; then
-    TXT_RED='\033[0;31m'
-    TXT_GREEN='\033[0;32m'
-    TXT_BLUE='\033[0;34m'
-    TXT_YELLOW='\033[0;33m'
-    TXT_PURPLE='\033[0;35m'
-    TXT_GRAY='\033[0;90m'
-    TXT_BOLD='\033[1m'
-    TXT_DEFAULT='\033[0m'
-fi
 
-# setup emoji
-if [ -z "$NO_EMOJI" ]; then
-    TXT_SUCCESS='✅'
-    TXT_WARNING='⚠️'
-    TXT_FAILURE='❌'
-    TXT_ERROR='❌'
-    TXT_INFO='💡'
-    TXT_OK='👍'
-    TXT_READY='🚀'
-    TXT_ATTENTION='🚨'
-    TXT_BULLET='🔹'
-else
-    TXT_SUCCESS="${TXT_GREEN}${TXT_BOLD}[SUCCESS]${TXT_DEFAULT}"
-    TXT_WARNING="${TXT_YELLOW}${TXT_BOLD}[WARNING]${TXT_DEFAULT}"
-    TXT_FAILURE="${TXT_RED}${TXT_BOLD}[FAILURE]${TXT_DEFAULT}"
-    TXT_ERROR="${TXT_RED}${TXT_BOLD}[ERROR]${TXT_DEFAULT}"
-    TXT_INFO="${TXT_BLUE}${TXT_BOLD}[INFO]${TXT_DEFAULT}"
-    TXT_OK="${TXT_BOLD}[OK]${TXT_DEFAULT}"
-    TXT_READY="${TXT_BOLD}${TXT_YELLOW}[!]${TXT_DEFAULT}"
-    TXT_ATTENTION="${TXT_BOLD}${TXT_RED}[!]${TXT_DEFAULT}"
-    TXT_BULLET="*"
-fi
+update_colors() {
+    # setup colors
+    if [ -z "$NO_COLOR" ]; then
+        TXT_RED='\033[0;31m'
+        TXT_GREEN='\033[0;32m'
+        TXT_BLUE='\033[0;34m'
+        TXT_YELLOW='\033[0;33m'
+        TXT_PURPLE='\033[0;35m'
+        TXT_GRAY='\033[0;90m'
+        TXT_BOLD='\033[1m'
+        TXT_DEFAULT='\033[0m'
+    fi
+
+    # setup emoji
+    if [ -z "$NO_EMOJI" ]; then
+        TXT_SUCCESS='✅'
+        TXT_WARNING='⚠️'
+        TXT_FAILURE='❌'
+        TXT_ERROR='❌'
+        TXT_INFO='💡'
+        TXT_OK='👍'
+        TXT_READY='🚀'
+        TXT_ATTENTION='🚨'
+        TXT_BULLET='🔹'
+    else
+        TXT_SUCCESS="${TXT_GREEN}${TXT_BOLD}[SUCCESS]${TXT_DEFAULT}"
+        TXT_WARNING="${TXT_YELLOW}${TXT_BOLD}[WARNING]${TXT_DEFAULT}"
+        TXT_FAILURE="${TXT_RED}${TXT_BOLD}[FAILURE]${TXT_DEFAULT}"
+        TXT_ERROR="${TXT_RED}${TXT_BOLD}[ERROR]${TXT_DEFAULT}"
+        TXT_INFO="${TXT_BLUE}${TXT_BOLD}[INFO]${TXT_DEFAULT}"
+        TXT_OK="${TXT_BOLD}[OK]${TXT_DEFAULT}"
+        TXT_READY="${TXT_BOLD}${TXT_YELLOW}[!]${TXT_DEFAULT}"
+        TXT_ATTENTION="${TXT_BOLD}${TXT_RED}[!]${TXT_DEFAULT}"
+        TXT_BULLET="*"
+    fi
+}
+update_colors
+
 
 print_error() {
     printf -- "${TXT_ERROR} ${TXT_RED}$1${TXT_DEFAULT}\n" >&2
