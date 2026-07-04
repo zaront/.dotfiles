@@ -60,6 +60,7 @@ if [ ! -t 1 ]; then
     NO_TIP=1
 fi
 
+
 # Extract metatags from the header
 # $1 = Path to the script file
 # Results: _cmd_header
@@ -143,7 +144,7 @@ _cmd_parse_metatag() {
 
         # parse parameters
         case "$_cmd_tag" in
-            "@DESC"|"@EXAMPLE")
+            "@DESC"|"@EXAMPLE"|"@VERSION")
                 # remander is description
                 _cmd_line="${_cmd_line#"${_cmd_line%%[![:space:]]*}"}" # left trim
                 _cmd_desc="${_cmd_line}" 
@@ -214,6 +215,10 @@ _cmd_parse_metatag() {
                 _cmd_short=""
                 _cmd_long=""
             ;;
+            "@STDIN")
+                _cmd_short=""
+                _cmd_long=""
+            ;;
         esac
 
         # skip invalid tags
@@ -225,7 +230,7 @@ _cmd_parse_metatag() {
                 [ -n "$_cmd_short" ] && [ ! "${#_cmd_short}" -eq 1 ] && continue # short must be 1 char
                 [ -n "$_cmd_long" ] && [ ! "${#_cmd_long}" -gt 1 ] && continue # long must be more than 1 char
             ;;
-            "@PARAM")
+            "@PARAM"|"@STDIN")
                 [ "${_cmd_value#* }" != "$_cmd_value" ] && continue # value has spaces
             ;;
             "@DESC"|"@EXAMPLE")
@@ -269,13 +274,14 @@ _cmd_print_columns() {
     done
 }
 
+
 # $1 = metatag header
 # $2 = current command name
 # $3 = sub commands directory
 _cmd_print_help() {
     _cmd_metatags="$1"
     _cmd_current_name="$2"
-    _cmd_comands_dir="$3"
+    _cmd_commands_dir="$3"
 
     # print usage
     printf -- "${TXT_GRAY}Usage:${TXT_DEFAULT}  ${_cmd_current_name}"
@@ -294,7 +300,7 @@ _cmd_print_help() {
         fi
     done
     # command
-    if [ -d "$_cmd_has_sub_cmds" ]; then
+    if [ -d "$_cmd_commands_dir" ]; then
         _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
         if _cmd_parse_metatag; then
             printf -- " ${TXT_GRAY}[COMMAND]${TXT_DEFAULT}"
@@ -302,15 +308,28 @@ _cmd_print_help() {
             printf -- " COMMAND"
         fi
     fi
-    # parameters
-    _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
+    # parameters & stdin
+    _cmd_parse_metatag "$_cmd_metatags"
     while _cmd_parse_metatag; do
-        if [ -n "$_cmd_req" ]; then
-            printf -- " <%s>" "$_cmd_value"
-        else
-            printf -- " ${TXT_GRAY}[<%s>]${TXT_DEFAULT}" "$_cmd_value"
-        fi
+        case "$_cmd_tag" in
+            "@PARAM"|"@STDIN")
+                if [ -n "$_cmd_req" ]; then
+                    printf -- " %s" "$_cmd_value"
+                else
+                    printf -- " ${TXT_GRAY}[%s]${TXT_DEFAULT}" "$_cmd_value"
+                fi
+            ;;
+        esac
     done
+    # stdin
+    _cmd_parse_metatag "$_cmd_metatags" "@STDIN"
+    if _cmd_parse_metatag; then
+        if [ -n "$_cmd_req" ]; then
+            printf -- " %s" "< stdin"
+        else
+            printf -- " ${TXT_GRAY}[%s]${TXT_DEFAULT}" "< stdin"
+        fi
+    fi
     printf -- "${TXT_DEFAULT}\n"
 
     # print description
@@ -320,9 +339,9 @@ _cmd_print_help() {
     done
 
     # print commands
-    if [ -d "$_cmd_comands_dir" ]; then
+    if [ -d "$_cmd_commands_dir" ]; then
         printf -- "\n${TXT_BOLD}Commands:${TXT_DEFAULT}\n"
-        for _cmd_cmds_file in "$_cmd_comands_dir"/*.sh; do
+        for _cmd_cmds_file in "$_cmd_commands_dir"/*.sh; do
             _cmd_metatag_header "$_cmd_cmds_file"
             _cmd_parse_metatag "$_cmd_header" "@DESC"
             _cmd_parse_metatag
@@ -337,24 +356,29 @@ _cmd_print_help() {
     _cmd_parse_metatag "$_cmd_metatags"
     while _cmd_parse_metatag; do
         case "$_cmd_tag" in
-            "@SWITCH"|"@OPTION"|"@PARAM")
-            if [ "$_cmd_printed" != "options" ]; then
-                printf -- "\n${TXT_BOLD}Options:${TXT_DEFAULT}\n"
-                _cmd_printed="options"
-            fi
-            _cmd_fmt_value=""
-            _cmd_fmt_color=""
-            _cmd_fmt_color_end=""
-            [ "$_cmd_short" ] && _cmd_fmt_value="-${_cmd_short}" # short
-            [ "$_cmd_long" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value}, " # comma
-            [ "$_cmd_long" ] && _cmd_fmt_value="${_cmd_fmt_value}--${_cmd_long}" # long
-            [ "$_cmd_value" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value} " # space
-            [ "$_cmd_value" ] && _cmd_fmt_value="${_cmd_fmt_value}<${_cmd_value}>" # value
-            [ "$_cmd_tag" = "@PARAM" ] && _cmd_fmt_color="${TXT_YELLOW}" && _cmd_fmt_color_end="${TXT_DEFAULT} " # yellow
-            _cmd_fmt_value="  $_cmd_fmt_value" # indent
-            _cmd_desc="${TXT_GRAY}$_cmd_desc${TXT_DEFAULT}" # gray
-            [ "$_cmd_req" ] && _cmd_desc="$_cmd_desc ${TXT_RED}(REQUIRED)${TXT_DEFAULT}" # required
-            _cmd_print_columns "$_cmd_fmt_value" "$_cmd_desc" 25 "$_cmd_fmt_color" "$_cmd_fmt_color_end" # print
+            "@SWITCH"|"@OPTION"|"@PARAM"|"@STDIN"|"@VERSION")
+                if [ "$_cmd_printed" != "options" ]; then
+                    printf -- "\n${TXT_BOLD}Options:${TXT_DEFAULT}\n"
+                    _cmd_printed="options"
+                fi
+                _cmd_fmt_value=""
+                _cmd_fmt_color=""
+                _cmd_fmt_color_end=""
+                [ "$_cmd_tag" = "@VERSION" ] && _cmd_long="version" # include version as an option
+                [ "$_cmd_tag" = "@VERSION" ] && _cmd_desc="Display the version" # include version destription
+                [ "$_cmd_short" ] && _cmd_fmt_value="-${_cmd_short}" # short
+                [ "$_cmd_long" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value}, " # comma
+                [ "$_cmd_long" ] && _cmd_fmt_value="${_cmd_fmt_value}--${_cmd_long}" # long
+                [ "$_cmd_value" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value} <${_cmd_value}>" # option value
+                [ "$_cmd_value" ] && [ ! "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value}${_cmd_value}" # param value
+                [ "$_cmd_value" ] && [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_value="${_cmd_fmt_value}, < stdin" # stdin value + pipe
+                [ ! "$_cmd_value" ] && [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_value="${_cmd_fmt_value}< stdin" # stdin pipe only
+                [ "$_cmd_tag" = "@PARAM" ] && _cmd_fmt_color="${TXT_YELLOW}" && _cmd_fmt_color_end="${TXT_DEFAULT} " # param yellow
+                [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_color="${TXT_BLUE}" && _cmd_fmt_color_end="${TXT_DEFAULT} " # stdin blue
+                _cmd_fmt_value="  $_cmd_fmt_value" # indent
+                _cmd_desc="${TXT_GRAY}$_cmd_desc${TXT_DEFAULT}" # gray
+                [ "$_cmd_req" ] && _cmd_desc="$_cmd_desc ${TXT_RED}(REQUIRED)${TXT_DEFAULT}" # required
+                _cmd_print_columns "$_cmd_fmt_value" "$_cmd_desc" 25 "$_cmd_fmt_color" "$_cmd_fmt_color_end" # print
             ;;
         esac
     done
@@ -370,6 +394,7 @@ _cmd_print_help() {
     done
 }
 
+
 # $1 = $0
 # $2 = $@
 # returns: command - the parsed command name
@@ -378,9 +403,9 @@ _cmd_print_help() {
 # pesets:  continue_after_showing_help - to not exit after showing help
 parse_args() {
     # process first argument
-    _cmd_current_name=${0##*/} # get filename
+    _cmd_current_name=${1##*/} # get filename
     _cmd_current_name=${_cmd_current_name%".sh"} # remove extension
-    _cmd_comands_dir="${_cmd_target_file%/*}/${_cmd_current_name}_cmds" # get commands directory
+    _cmd_commands_dir="${1%/*}/${_cmd_current_name}_cmds" # get commands directory
     shift
     
     # extract metatags from header
@@ -392,34 +417,49 @@ parse_args() {
     _cmd_command_args=""
 
     # show help if there are subcommands and no arguments
-    if [ -d "$_cmd_comands_dir" ] && [ "$#" -eq 0 ]; then
-        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_comands_dir"
+    if [ -d "$_cmd_commands_dir" ] && [ "$#" -eq 0 ]; then
+        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_commands_dir"
         printed_help=1
         if [ -z "$continue_after_showing_help" ]; then
             exit 0
         fi
     fi
 
-    # parse arguments
+    # parse arguments - loop
     _cmd_param_order_count=0
     _cmd_stop_options=""
+    _cmd_grouped_switches=""
     while [ "$#" -gt 0 ]; do
-        # get next argument
-        _cmd_arg="$1"
-        shift
 
-        # categorize argument type
-        if [ "$_cmd_arg" = "--" ]; then
-            _cmd_stop_options=1
-            continue
-        fi
-        _cmd_arg_type=""
-        if [ -z "$_cmd_stop_options" ]; then # no stop options
-            if [ "${_cmd_arg%${_cmd_arg#??}}" = "--" ]; then # has two dashes
-                _cmd_arg_type="long"
-            elif [ "${_cmd_arg%${_cmd_arg#?}}" = "-" ]; then # has one dash
-                _cmd_arg_type="short"
+        # get next argument
+        if [ -z "$_cmd_grouped_switches" ]; then
+            # extract next argument
+            _cmd_arg="$1"
+            shift
+            # categorize argument type
+            if [ "$_cmd_arg" = "--" ]; then
+                _cmd_stop_options=1
+                continue
             fi
+            _cmd_arg_type=""
+            _cmd_long_dash="" # used for easy printing of -- or -
+            if [ -z "$_cmd_stop_options" ]; then # no stop options
+                if [ "${_cmd_arg%${_cmd_arg#??}}" = "--" ]; then # has two dashes
+                    _cmd_arg_type="long"
+                    _cmd_long_dash="-"
+                elif [ "${_cmd_arg%${_cmd_arg#?}}" = "-" ]; then # has one dash
+                    _cmd_arg_type="short"
+                    if [ "${#_cmd_arg}" -gt 2 ]; then # is a grouped switch
+                        _cmd_grouped_switches="${_cmd_arg#?}" # remove first dash
+                        _cmd_arg="${_cmd_grouped_switches%${_cmd_grouped_switches#?}}" # get first switch
+                        _cmd_grouped_switches="${_cmd_grouped_switches#?}" # remove switch from group
+                    fi
+                fi
+            fi
+        else
+            # extract from grouped switches
+            _cmd_arg="${_cmd_grouped_switches%${_cmd_grouped_switches#?}}" # get next switch
+            _cmd_grouped_switches="${_cmd_grouped_switches#?}" # remove switch from group
         fi
 
         # switch & option
@@ -427,44 +467,49 @@ parse_args() {
             # strip dashes
             _cmd_arg="${_cmd_arg#-}"
             _cmd_arg="${_cmd_arg#-}"
-
-            # find tag
+            # match switch & option
             _cmd_arg_found=""
             _cmd_parse_metatag "$_cmd_metatags"
             while _cmd_parse_metatag; do
                 case "$_cmd_tag" in
                     "@SWITCH")
-                        if [ "$_cmd_arg" = "$_cmd_short" ] || [ "$_cmd_arg" = "$_cmd_long" ]; then
+                        if [ $_cmd_arg_type = "short" -a "$_cmd_arg" = "$_cmd_short" ] || [ $_cmd_arg_type = "long" -a "$_cmd_arg" = "$_cmd_long" ]; then
                             eval "${_cmd_short:-$_cmd_long}=1" # set variable
                             _cmd_arg_found=1
-                            break
+                            break # completed processing this argument
                         fi
                     ;;
                     "@OPTION")
-                        if [ "$_cmd_arg" = "$_cmd_short" ] || [ "$_cmd_arg" = "$_cmd_long" ]; then
+                        if [ $_cmd_arg_type = "short" -a "$_cmd_arg" = "$_cmd_short" ] || [ $_cmd_arg_type = "long" -a "$_cmd_arg" = "$_cmd_long" ]; then
                             # validate has value
                             if [ -z "$1" ] || case "$1" in -*) true ;; *) false ;; esac; then
-                                _cmd_long_dash=""
-                                [ "$_cmd_arg" = "$_cmd_long" ] && _cmd_long_dash="-"
-                                print_error "Option '-${_cmd_long_dash}${_cmd_arg}' is missing its <$_cmd_value> value."
+                                print_error "Option '-${_cmd_long_dash}${_cmd_arg}' is missing the value <$_cmd_value>."
                                 [ -z "$NO_TIP" ] && print_info "use --help for usage"
                                 exit 1
                             fi
                             eval "${_cmd_short:-$_cmd_long}=$1" # set variable
                             shift # remove value
                             _cmd_arg_found=1
-                            break
+                            break # completed processing this argument
                         fi
                     ;;
                 esac
             done
             # argument not found
             if [ -z "$_cmd_arg_found" ]; then
+                # show version (--version)
+                if [ "$_cmd_arg" = "version" ] && _cmd_arg_type="long"; then
+                     _cmd_parse_metatag "$_cmd_metatags" "@VERSION"
+                    if _cmd_parse_metatag; then
+                        printf -- "$_cmd_desc\n"
+                        exit 0
+                    fi
+                fi
                 # show help (-h, --help)
                 if [ "$_cmd_arg" = "h" ] || [ "$_cmd_arg" = "help" ]; then
                     if [ -z "$_cmd_command_path" ]; then
                         # no command found yet - show help for this command
-                        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_comands_dir"
+                        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_commands_dir"
                         printed_help=1
                         if [ -z "$continue_after_showing_help" ]; then
                             exit 0
@@ -475,17 +520,17 @@ parse_args() {
                     fi
                 # unknown argument
                 else
-                    print_error "Unknown option '$_cmd_arg'"
+                    print_error "Unknown option '-${_cmd_long_dash}${_cmd_arg}'."
                     [ -z "$NO_TIP" ] && print_info "use --help for usage"
                     exit 1
                 fi
             fi
 
-        # command & param
+        # command & param & stdin
         else
             # match command
-            if [ -d "$_cmd_comands_dir" ] && [ -z "$_cmd_command_path" ]; then
-                _cmd_candidate_path="$_cmd_comands_dir/${_cmd_arg}.sh"
+            if [ -d "$_cmd_commands_dir" ] && [ -z "$_cmd_command_path" ]; then
+                _cmd_candidate_path="$_cmd_commands_dir/${_cmd_arg}.sh"
                 if [ -f "$_cmd_candidate_path" ]; then
                     # command found
                     command="$1"
@@ -496,24 +541,31 @@ parse_args() {
                         _cmd_command_args="${_cmd_command_args}${_cmd_command_args:+\n}$1"
                         shift
                     done
-                    break # stop processing arguments
+                    break # completed processing this argument
                 fi
-                # unknown command - only if it has no params
+                # unknown command - only if it has no params or stdin
                 _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
                 if ! _cmd_parse_metatag; then # has no params
-                    print_error "'$_cmd_arg' is not a valid $_cmd_current_name command."
-                    [ -z "$NO_TIP" ] && print_info "use --help for usage"
-                    exit 1
+                    _cmd_parse_metatag "$_cmd_metatags" "@STDIN"
+                    if ! _cmd_parse_metatag || [ -z "$_cmd_value" ]; then # has no stdin with value
+                        print_error "'$_cmd_arg' is not a valid $_cmd_current_name command."
+                        [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                        exit 1
+                    fi
                 fi
             fi  
-            # match param - if not a command it must be a param
+            # match param - if not a command it must be a param or stdin
             _cmd_param_order_index=0
             _cmd_param_order_count=$((_cmd_param_order_count + 1))
-            _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
-            # get the next param in order
+            _cmd_parse_metatag "$_cmd_metatags"
+            # get the next param or stdin in order
             while [ "$_cmd_param_order_index" -lt "$_cmd_param_order_count" ]; do
-                _cmd_param_order_index=$((_cmd_param_order_index + 1))
                 _cmd_parse_metatag || break
+                case "$_cmd_tag" in
+                    "@PARAM"|"@STDIN")
+                        [ -n "$_cmd_value" ] && _cmd_param_order_index=$((_cmd_param_order_index + 1))
+                    ;;
+                esac
             done
             if [ -n "$_cmd_value" ]; then
                 eval "$_cmd_value=\"\$_cmd_arg\"" # set variable
@@ -525,17 +577,17 @@ parse_args() {
         fi
     done
 
-    # required options & params
+    # required options & params & stdin
     _cmd_parse_metatag "$_cmd_metatags"
     while _cmd_parse_metatag; do
         [ -n "$_cmd_req" ] || continue # not required
         case "$_cmd_tag" in
             "@OPTION")
-                _cmd_long_dash=""
-                [ -z "$_cmd_short" ] && _cmd_long_dash="-"
+                _cmd_long_dash2=""
+                [ -z "$_cmd_short" ] && _cmd_long_dash2="-"
                 eval "_cmd_current_val=\"\$${_cmd_short:-$_cmd_long}\"" # get variable from string
                 if [ -z "$_cmd_current_val" ]; then
-                    print_error "Option '-${_cmd_long_dash}${_cmd_short:-$_cmd_long}' is missing."
+                    print_error "Option '-${_cmd_long_dash2}${_cmd_short:-$_cmd_long}' is required."
                     [ -z "$NO_TIP" ] && print_info "use --help for usage"
                     exit 1
                 fi
@@ -543,14 +595,61 @@ parse_args() {
             "@PARAM")
                 eval "_cmd_current_val=\"\$${_cmd_value}\"" # get variable from string
                 if [ -z "$_cmd_current_val" ]; then
-                    print_error "Parameter '<$_cmd_value>' is missing."
+                    print_error "Parameter '$_cmd_value' is required."
                     [ -z "$NO_TIP" ] && print_info "use --help for usage"
                     exit 1
+                fi
+            ;;
+            "@STDIN")
+                if [ -z "$_cmd_stdin" ]; then
+                    if [ -t 0 ]; then # no stdin
+                        if [ -z "_cmd_value" ]; then
+                            print_error "Standard input (< stdin) is required."
+                            [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                            exit 1
+                        else
+                            eval "_cmd_current_val=\"\$${_cmd_value}\"" # get variable from string
+                            if [ -z "$_cmd_current_val" ]; then
+                                print_error "Parameter '$_cmd_value' or standard input (< stdin) is required."
+                                [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                                exit 1
+                            fi
+                        fi
+                    fi
                 fi
             ;;
         esac
     done
 }
+
+
+# will run a subcommand that was previously parsed with parse_args
+run_subcommand() {
+    # validate
+    if [ -z "$command" ]; then
+        return 0
+    fi
+
+    # get arguments back into $@ for the command - swap out newlines for spaces
+    _cmd_prev_ifs=$IFS
+    IFS="\n"
+    set -f
+    set -- $_cmd_command_args
+    set +f
+    IFS=$_cmd_prev_ifs
+
+    # run the command - include the root command in env
+    DOTFILES_CMD="$DOTFILES_CMD" exec sh "$_cmd_command_path" "$@"
+}
+
+
+# will parse args, then run a subcommand
+run_args() {
+  shift
+  parse_options "$0" "$@"
+  run_subcommand
+}
+
 
 
 debug() {
@@ -588,9 +687,7 @@ echo "param_1: $param_1"
 echo "param_2: $param_2"
 echo "param_3: $param_3"
 echo "-t: $t"
-
-exit 0
-
+echo "file_name: $file_name"
 
 
 
@@ -598,45 +695,3 @@ exit 0
 
 
 
-
-
-
-
-
-
-
-
-
-lines="
-# @DESC,    Order parts from supplier
-# @SWITCH: v,,Verify the order before sending
-# @SWITCH: ,free,Request free shipping
-# @SWITCH: P,PO,Submit as a purchase order
-# @OPTION: p,,Requested price
-# @OPTION: ,user,User name,required
-# @OPTION: i,id,The item id,required
-# @PARAM: item_name,The name of the item to order,required
-# @PARAM: backup,Path to backup the order to
-
-"
-
-
-old_ifs="$IFS"
-
-IFS='
-'
-
-# 2. Loop natively through the lines (automatically skips if empty/unset)
-for _line in $lines; do
-    # Restore standard IFS briefly if needed inside, or use parameter expansions:
-    _short_opt="${_line%%,*}"                  # Extracts everything before the first comma
-    _rem="${_line#*,}"                          # Trims off everything before the first comma
-    _long_opt="${_rem%%,*}"                    # Extracts everything before the second comma
-    _description="${_rem#*,}"                  # Extracts everything after the second comma
-
-    # Use your data natively
-    echo "Short: $_short_opt | Long: $_long_opt | Info: $_description"
-done
-
-
-IFS="$old_ifs"
