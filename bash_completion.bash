@@ -17,8 +17,8 @@ _dotfiles_subcommand_completion() {
     [ -z "$wrapper_path" ] && return 0
 
     # Construct base path to the companion commands directory
-    local _base_dir="${wrapper_path%/*}" # directory
-    local _wrapper_name="${wrapper_path##*/}" # file
+    local base_dir=$(dirname "$wrapper_path")
+    local wrapper_name=$(basename "$wrapper_path")
     local current_cmds_dir="${base_dir}/${wrapper_name}_cmds"
     local i
     local in_subcommand_space=true
@@ -62,7 +62,7 @@ _df_bin_dir="$DOTFILES/bin"
 if [ -d "$_df_bin_dir" ]; then
     for _target_exec in "$_df_bin_dir"/*; do
         if [ -f "$_target_exec" ] && [ -x "$_target_exec" ]; then
-            _cmd_name="${_target_exec##*/}" # file
+            _cmd_name=$(basename "$_target_exec")
             if [ -d "${_target_exec}_cmds" ]; then
                 complete -F _dotfiles_subcommand_completion "$_cmd_name"
             fi
@@ -70,4 +70,6 @@ if [ -d "$_df_bin_dir" ]; then
     done
 fi
 unset _df_bin_dir _target_exec _cmd_name
+
+
 
