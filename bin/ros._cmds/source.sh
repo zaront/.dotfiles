@@ -3,7 +3,7 @@
 
 . $DOTFILES/common.sh
 
-parse_options "$0" "$@"
+parse_args "$0" "$@"
 
 if [ "$r" = true ]; then
     unset_startup "auto-source"

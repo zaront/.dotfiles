@@ -3,27 +3,31 @@
 
 . $DOTFILES/common.sh
 
-continue_after_showing_help=true 
-run_subcommand "$0" "$@"
+continue_after_showing_help=1 
+run_args "$0" "$@"
 
 # list commands in the bin directory
-if [ -d "$DOTFILES/bin" ]; then
-    printf "\n\n${TXT_READY} ${TXT_BOLD}%s${TXT_DEFAULT}\n" "Commands included with dotfiles:"
-    # list commands only executable files in the bin directory
-    for cmd in "$DOTFILES/bin"/*; do
-        if [ -x "$cmd" ]; then
-            # exclude directories and non-executable files
-            if [ ! -f "$cmd" ]; then
-                continue
+if [ -n "$printed_help" ]; then
+    if [ -d "$DOTFILES/bin" ]; then
+        printf "\n\n${TXT_READY} ${TXT_BOLD}%s${TXT_DEFAULT}\n" "Commands included with dotfiles:"
+        # list commands only executable files in the bin directory
+        for cmd in "$DOTFILES/bin"/*; do
+            if [ -x "$cmd" ]; then
+                # exclude directories and non-executable files
+                if [ ! -f "$cmd" ]; then
+                    continue
+                fi
+                #exclude the main dotfiles script
+                if [ "${cmd##*/}" = "dotfiles" ]; then
+                    continue
+                fi
+                # show each commands description if it exists
+                _cmd_metatag_header "$cmd"
+                _cmd_parse_metatag "$_cmd_header" "@DESC"
+                if _cmd_parse_metatag; then
+                    printf "  ${TXT_BLUE}%-15s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "${cmd##*/}" "${_cmd_desc%%\n*}"
+                fi
             fi
-            #exclude the main dotfiles script
-            if [ "$(basename "$cmd")" = "dotfiles" ]; then
-                continue
-            fi
-            # show each commands description if it exists
-            header=$(sed -n '/^#/p; /^[^#]/q' "$cmd" 2>/dev/null || true)
-            desc=$(echo "$header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
-            printf "  ${TXT_BLUE}%-15s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$(basename "$cmd")" "$desc"
-        fi
-    done
-fi  
+        done
+    fi 
+fi 

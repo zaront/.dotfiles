@@ -1,7 +1,7 @@
 # @DESC: Install ROS 2 distro
 
 . $DOTFILES/common.sh
-parse_options "$0" "$@"
+parse_args "$0" "$@"
 
 
 # select ROS 2 distro

@@ -1,7 +1,13 @@
-
-##########################
-# Parse options & commands
-##########################
+###################################
+# a sh posix argument parser
+# fast: no subshells or processes
+# uses metatags to define arguments
+# supports: subcommands
+#           colors
+#           auto help (-h/--help)
+#           stop options (--)
+#           grouped switches (-abc)
+###################################
 
 # source only once
 [ -n "$_cmd_sourced" ] && return 0
@@ -10,349 +16,56 @@ _cmd_sourced=1
 . $DOTFILES/common/tui.sh
 
 # EXAMPLE METADATA: - should be added to the top of the script
+#   - parameter can be in any order
+#   - descriptive text can be multiple lines
 
-# @DESC: Order parts from supplier
-# @SWITCH: v,,Verify the order before sending
-# @SWITCH: ,free,Request free shipping
-# @SWITCH: P,PO,Submit as a purchase order
-# @OPTION: p,,Requested price
-# @OPTION: ,user,User name,required
-# @OPTION: i,id,The item id,required
-# @PARAM: item_name,The name of the item to order,required
-# @PARAM: backup,Path to backup the order to
+# @DESC:    Order parts from supplier
+#           - all orders are sent the next day
+# @VERSION: 0.4.2-alpha (26.07)
+# @SWITCH:  -v, Verify the order before sending
+# @SWITCH:  --free, Request free shipping
+# @SWITCH:  -P, --PO, Submit as a purchase order
+# @OPTION:  -p, Requested price
+# @OPTION:  --user, <user name>, REQUIRED
+# @OPTION:  -i, --id, <id>, REQUIRED, The items id
+# @PARAM:   <item_name>, The name of the item to order, REQUIRED
+# @STDIN:   REQUIRED, <header>, A header to put on the order
+# @PARAM:   <backup>, Path to backup the order to
 
-# @DESC format: description
-# @SWITCH format: [short],[long],description
-# @OPTION format: [short],[long],description[,required]
-# @PARAM format: name,description[,required]
+# @EXAMPLE: 
+#   place_order --user John -i 123 paper "my header"
+#   place_order --user John -i 123 paper < header.txt
+#
+#  You can pipe the output to a file:
+#  place_order "USB cable" --user "John Doe" -i "123456" < /tmp/order_header.txt > /tmp/order.txt
+
 
 
 # will always be the root command
 DOTFILES_CMD="${DOTFILES_CMD:-$0}"
 
-_cmd_show_help() {
-    _cmd_file_target="$1"
-    _cmd_header_data="$2"
-    _cmd_base_name=$(basename "$_cmd_file_target" .sh)
-    
-    # print usage
-    printf -- "${TXT_GRAY}Usage:${TXT_DEFAULT}  %s" "$_cmd_base_name"
-    # switches (format: short,long,description)
-    if [ -n "$_cmd_switch_lines" ]; then
-        echo "$_cmd_switch_lines" | while read -r _cmd_line; do
-            _cmd_clean=$(echo "$_cmd_line" | sed 's/.*@SWITCH: //')
-            _cmd_short=$(echo "$_cmd_clean" | cut -d, -f1)
-            _cmd_long=$(echo "$_cmd_clean" | cut -d, -f2)
-            if [ -n "$_cmd_short" ]; then
-                printf -- " ${TXT_GRAY}[-%s]${TXT_DEFAULT}" "$_cmd_short"
-            elif [ -n "$_cmd_long" ]; then
-                printf -- " ${TXT_GRAY}[--%s]${TXT_DEFAULT}" "$_cmd_long"
-            fi
-        done
-    fi
-    # options (format: short,long,description[,required])
-    if [ -n "$_cmd_switch_lines" ]; then
-        echo "$_cmd_option_lines" | while read -r _cmd_line; do
-            _cmd_clean=$(echo "$_cmd_line" | sed 's/.*@OPTION: //')
-            _cmd_short=$(echo "$_cmd_clean" | cut -d, -f1)
-            _cmd_long=$(echo "$_cmd_clean" | cut -d, -f2)
-            _cmd_desc=$(echo "$_cmd_clean" | cut -d, -f3)
-            case "$_cmd_line" in *,required*) _cmd_req="required" ;; *) _cmd_req="optional" ;; esac
-            # display flag: prefer short name, otherwise long
-            if [ -n "$_cmd_short" ]; then
-                _cmd_flag="-$_cmd_short"
-                _cmd_var_name="${_cmd_long:-value}"
-            elif [ -n "$_cmd_long" ]; then
-                _cmd_flag="--$_cmd_long"
-                _cmd_var_name="value"
-            else
-                _cmd_flag=""
-                _cmd_var_name="value"
-            fi
+# if not connected to terminal
+if [ ! -t 1 ]; then
+    NO_TIP=1
+fi
 
-            if [ "$_cmd_req" = "required" ]; then
-                printf -- " ${TXT_RED}%s <%s>${TXT_DEFAULT}" "$_cmd_flag" "$_cmd_var_name"
-            else
-                printf -- " ${TXT_GRAY}[%s <%s>]${TXT_DEFAULT}" "$_cmd_flag" "$_cmd_var_name"
-            fi
-        done
-    fi
-    # command
-    if [ -d "$_cmd_cmds_dir" ]; then
-        if [ -n "$_cmd_param_lines" ]; then
-            printf -- " ${TXT_GRAY}[COMMAND]${TXT_DEFAULT}"
-        else
-            printf -- " COMMAND"
-        fi
-    fi
-    # parameters
-    if [ -n "$_cmd_param_lines" ]; then
-        echo "$_cmd_param_lines" | while read -r _cmd_line; do
-            _cmd_clean=$(echo "$_cmd_line" | sed 's/.*@PARAM: //')
-            _cmd_param_name=$(echo "$_cmd_clean" | cut -d, -f1)
-            case "$_cmd_line" in *,required*) _cmd_req="required" ;; *) _cmd_req="optional" ;; esac
-            if [ "$_cmd_req" = "required" ]; then
-                printf -- " <%s>" "$_cmd_param_name"
-            else
-                printf -- " ${TXT_GRAY}[<%s>]${TXT_DEFAULT}" "$_cmd_param_name"
-            fi
-        done
-    fi
-    printf -- "${TXT_DEFAULT}\n"
+_cmd_nl='
+'
 
-    # print description
-    _cmd_desc="$_cmd_meta_desc"
-    if [ -n "$_cmd_desc" ]; then
-        printf -- "\n${TXT_BOLD}${TXT_BLUE}%s${TXT_DEFAULT}\n" "$_cmd_desc"
-    fi
 
-    # print commands
-    if [ -d "$_cmd_cmds_dir" ]; then
-        printf "\n${TXT_BOLD}Commands:${TXT_DEFAULT}\n"
-        for _cmd_s_file in "$_cmd_cmds_dir"/*.sh; do
-            if [ -f "$_cmd_s_file" ]; then
-                _cmd_s_header=$(sed -n '/^#/p; /^[^#]/q' "$_cmd_s_file" 2>/dev/null || true)
-                _cmd_s_desc=$(echo "$_cmd_s_header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
-                printf "  ${TXT_YELLOW}%-15s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$(basename "$_cmd_s_file" .sh)" "$_cmd_s_desc"
-            fi
-        done
-    fi
-
-    # print options
-    if echo "$_cmd_header" | grep -E -q "@SWITCH:|@OPTION:|@PARAM:"; then
-        printf -- "\n${TXT_BOLD}Options:${TXT_DEFAULT}\n"
-        echo "$_cmd_header" | grep -E "@SWITCH:|@OPTION:|@PARAM:" | while read -r _cmd_line; do
-            case "$_cmd_line" in
-                *@PARAM:*)
-                    _cmd_clean_line=$(echo "$_cmd_line" | sed 's/.*@PARAM: //')
-                    _cmd_cmd_name=$(echo "$_cmd_clean_line" | cut -d, -f1)
-                    _cmd_cmd_desc=$(echo "$_cmd_clean_line" | cut -d, -f2)
-                    case "$_cmd_line" in *,required*) _cmd_cmd_req="required" ;; *) _cmd_cmd_req="optional" ;; esac
-                    _cmd_col1=$(printf -- "<%s>" "$_cmd_cmd_name")
-                    if [ "$_cmd_cmd_req" = "required" ]; then
-                        printf -- "  ${TXT_YELLOW}%-25s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT} ${TXT_RED}[REQUIRED]${TXT_DEFAULT}\n" "$_cmd_col1" "$_cmd_cmd_desc"
-                    else
-                        printf -- "  ${TXT_YELLOW}%-25s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$_cmd_col1" "$_cmd_cmd_desc"
-                    fi
-                    ;;
-                *)
-                    _cmd_tag_type="SWITCH"
-                    case "$_cmd_line" in *@OPTION:*) _cmd_tag_type="OPTION" ;; esac
-                    _cmd_clean_line=$(echo "$_cmd_line" | sed "s/.*@\($_cmd_tag_type\): //")
-                    _cmd_raw=$(echo "$_cmd_clean_line" | cut -d, -f1)
-                    case "$_cmd_line" in *,required*) _cmd_req="required" ;; *) _cmd_req="optional" ;; esac
-                    case "$_cmd_clean_line" in
-                        *,*,*) 
-                            _cmd_long=$(echo "$_cmd_clean_line" | cut -d, -f2)
-                            _cmd_desc=$(echo "$_cmd_clean_line" | cut -d, -f3)
-                            if [ -z "$_cmd_raw" ]; then
-                                _cmd_col1=$(printf -- "--${_cmd_long}")
-                            elif [ -z "$_cmd_long" ]; then
-                                _cmd_col1=$(printf -- "-${_cmd_raw}")
-                            else
-                                _cmd_col1=$(printf -- "-${_cmd_raw}, --${_cmd_long}")
-                            fi
-                            ;;
-                        *)
-                            _cmd_desc=$(echo "$_cmd_clean_line" | cut -d, -f2)
-                            case "$_cmd_raw" in
-                                ??*) _cmd_col1=$(printf -- "--%s" "$_cmd_raw") ;;
-                                *)   _cmd_col1=$(printf -- "-%s" "$_cmd_raw") ;;
-                            esac
-                            ;;
-                    esac
-                    if [ "$_cmd_req" = "required" ]; then
-                        printf -- "  %-25s ${TXT_GRAY}%s${TXT_DEFAULT} ${TXT_RED}[REQUIRED]${TXT_DEFAULT}\n" "$_cmd_col1" "$_cmd_desc"
-                    else
-                        printf -- "  %-25s ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$_cmd_col1" "$_cmd_desc"
-                    fi
-                    ;;
-            esac
-        done
-    fi
+# will parse args, then run a subcommand
+# $1 = $0
+# $2 = $@
+run_args() {
+  shift
+  parse_args "$0" "$@"
+  run_subcommand
 }
 
 
-parse_options() {
-    _cmd_target_file="$1"
-    shift
-    _cmd_base_dir=$(dirname "$_cmd_target_file")
-    _cmd_wrapper_name=$(basename "$_cmd_target_file")
-    _cmd_clean_name="${_cmd_wrapper_name%.sh}"
-    _cmd_cmds_dir="$_cmd_base_dir/${_cmd_clean_name}_cmds"
-    
-    # extract header - all # lines at the top
-    _cmd_header=$(sed -n '/^#/p; /^[^#]/q' "$_cmd_target_file" 2>/dev/null || true)
-    
-    # parse header
-    _cmd_meta_desc=$(echo "$_cmd_header" | sed -n 's/.*@DESC: //p' 2>/dev/null || true)
-    _cmd_switch_lines=$(echo "$_cmd_header" | grep "@SWITCH:" 2>/dev/null || true)
-    _cmd_option_lines=$(echo "$_cmd_header" | grep "@OPTION:" 2>/dev/null || true)
-    _cmd_param_lines=$(echo "$_cmd_header" | grep "@PARAM:" 2>/dev/null || true)
-
-    command=""
-    _cmd_command_path=""
-    _cmd_command_args=""
-
-    # show help if there are subcommands and no arguments
-    if [ -d "$_cmd_cmds_dir" ] && [ "$#" -eq 0 ]; then
-        _cmd_show_help "$_cmd_target_file" "$_cmd_header"
-        if [ -z "$continue_after_showing_help" ]; then
-            exit 0
-        fi
-    fi
-
-    # CLI argument processing loop
-    _cmd_param_count=0
-    while [ "$#" -gt 0 ]; do
-        case "$1" in
-            -*)
-                # parse switch & option (new metadata format: short,long,description)
-                _cmd_clean_arg=$(echo "$1" | sed 's/^-*//')
-                _cmd_match_switch=$(echo "$_cmd_header" | grep "@SWITCH: " | grep -E ",$_cmd_clean_arg,|^# @SWITCH: $_cmd_clean_arg,")
-                _cmd_match_option=$(echo "$_cmd_header" | grep "@OPTION: " | grep -E ",$_cmd_clean_arg,|^# @OPTION: $_cmd_clean_arg,")
-                if [ -n "$_cmd_match_switch" ]; then
-                    _cmd_clean_switch=$(echo "$_cmd_match_switch" | sed 's/.*@SWITCH: //')
-                    _cmd_switch_short=$(echo "$_cmd_clean_switch" | cut -d, -f1)
-                    _cmd_switch_long=$(echo "$_cmd_clean_switch" | cut -d, -f2)
-                    if [ -n "$_cmd_switch_long" ]; then
-                        _cmd_var_name="$_cmd_switch_long"
-                        _cmd_opt_was_long="-"
-                    else
-                        _cmd_var_name="$_cmd_switch_short"
-                        _cmd_opt_was_long=""
-                    fi
-                    eval "$_cmd_var_name=true"
-                elif [ -n "$_cmd_match_option" ]; then
-                    _cmd_clean_option=$(echo "$_cmd_match_option" | sed 's/.*@OPTION: //')
-                    _cmd_opt_short=$(echo "$_cmd_clean_option" | cut -d, -f1)
-                    _cmd_opt_long=$(echo "$_cmd_clean_option" | cut -d, -f2)
-                    if [ -n "$_cmd_opt_long" ]; then
-                        _cmd_var_name="$_cmd_opt_long"
-                        _cmd_opt_was_long="-"
-                    else
-                        _cmd_var_name="$_cmd_opt_short"
-                        _cmd_opt_was_long=""
-                    fi
-                    if [ -z "$2" ] || case "$2" in -*) true ;; *) false ;; esac; then
-                        print_error "Option '-${_cmd_opt_was_long}${_cmd_clean_arg}' is missing a value."
-                        print_info "use --help for usage"
-                        exit 1
-                    fi
-                    eval "$_cmd_var_name=\"\$2\""
-                    shift
-                else
-                    # handle -h/--help: show root help only if no command found yet
-                    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-                        if [ -z "$_cmd_command_path" ]; then
-                            # no command found - show root help
-                            _cmd_show_help "$_cmd_target_file" "$_cmd_header"
-                            if [ -z "$continue_after_showing_help" ]; then
-                                exit 0
-                            fi
-                        else
-                            # command already found - pass -h/--help to subcommand
-                            _cmd_command_args="${_cmd_command_args}${_cmd_command_args:+
-}$1"
-                        fi
-                    else
-                        print_error "Unknown option '$1'"
-                        print_info "use --help for usage"
-                        exit 1
-                    fi
-                fi
-                ;;
-            *)
-                # parse command
-                if [ -d "$_cmd_cmds_dir" ] && [ -z "$_cmd_command_path" ]; then
-                    _cmd_candidate="$1"
-                    _cmd_candidate_path="$_cmd_cmds_dir/${_cmd_candidate}.sh"
-                    if [ -f "$_cmd_candidate_path" ]; then
-                        # command found
-                        command="$1"
-                        _cmd_command_path="$_cmd_candidate_path"
-                        shift
-                        # collect remaining arguments - swap out spaces for newlines
-                        _cmd_command_args=""
-                        while [ "$#" -gt 0 ]; do
-                            _cmd_command_args="${_cmd_command_args}${_cmd_command_args:+
-}$1"
-                            shift
-                        done
-                        break
-                    fi
-                    # show command error if there are no params
-                    if [ -z "$_cmd_param_lines" ]; then
-                        print_error "'$1' is not a valid $_cmd_clean_name command."
-                        print_info "use --help for usage"
-                        exit 1
-                    fi
-                fi  
-                # parse params - if not a command it must be a param
-                _cmd_param_count=$((_cmd_param_count + 1))
-                _cmd_param_match=$(echo "$_cmd_header" | grep "@PARAM:" | sed -n "${_cmd_param_count}p")
-                if [ -n "$_cmd_param_match" ]; then
-                    _cmd_param_name=$(echo "$_cmd_param_match" | sed 's/.*@PARAM: //' | cut -d, -f1)
-                    eval "$_cmd_param_name=\"\$1\""
-                else
-                    print_error "Unexpected argument '$1'."
-                    print_info "use --help for usage"
-                    exit 1
-                fi
-                ;;
-        esac
-        shift
-    done
-
-
-    # validate required options
-    _cmd_has_errors=false
-    if [ -n "$_cmd_option_lines" ]; then
-        printf "%s\n" "$_cmd_option_lines" | while read -r _cmd_line; do
-            case "$_cmd_line" in *,required*) _cmd_requirement="required" ;; *) _cmd_requirement="optional" ;; esac
-            if [ "$_cmd_requirement" = "required" ] ; then
-                _cmd_clean_line=$(echo "$_cmd_line" | sed 's/.*@OPTION: //')
-                _cmd_opt_short=$(echo "$_cmd_clean_line" | cut -d, -f1)
-                _cmd_opt_long=$(echo "$_cmd_clean_line" | cut -d, -f2)
-                if [ -n "$_cmd_opt_long" ]; then
-                    _cmd_var_name="$_cmd_opt_long"
-                    _cmd_opt_was_long="-"
-                else
-                    _cmd_var_name="$_cmd_opt_short"
-                    _cmd_opt_was_long=""
-                fi
-                eval "_cmd_current_val=\$$_cmd_var_name"
-                if [ -z "$_cmd_current_val" ]; then
-                    print_error "Option '-${_cmd_opt_was_long}${_cmd_var_name}' is missing."
-                    exit 1 
-                fi
-            fi
-        done || _cmd_has_errors=true
-    fi
-    # validate required parameters
-    if [ -n "$_cmd_param_lines" ]; then
-        printf "%s\n" "$_cmd_param_lines" | while read -r _cmd_line; do
-            case "$_cmd_line" in *,required*) _cmd_requirement="required" ;; *) _cmd_requirement="optional" ;; esac
-            if [ "$_cmd_requirement" = "required" ]; then
-                _cmd_clean_line=$(echo "$_cmd_line" | sed 's/.*@PARAM: //')
-                _cmd_param_name=$(echo "$_cmd_clean_line" | cut -d, -f1)
-                eval "_cmd_current_val=\$$_cmd_param_name"
-                if [ -z "$_cmd_current_val" ]; then
-                    print_error "Parameter '<$_cmd_param_name>' is missing."
-                    exit 1
-                fi
-            fi
-        done || _cmd_has_errors=true
-    fi
-    # exit with error if a validation failed
-    if [ "$_cmd_has_errors" = true ]; then
-        print_info "use --help for usage"
-        exit 1
-    fi
-}
-
-
-exec_command() {
+# will run a subcommand 
+# must call 'parse_args' first
+run_subcommand() {
     # validate
     if [ -z "$command" ]; then
         return 0
@@ -360,8 +73,7 @@ exec_command() {
 
     # get arguments back into $@ for the command - swap out newlines for spaces
     _cmd_prev_ifs=$IFS
-    IFS='
-'
+    IFS="$_cmd_nl"
     set -f
     set -- $_cmd_command_args
     set +f
@@ -372,8 +84,563 @@ exec_command() {
 }
 
 
-run_subcommand() {
-  shift
-  parse_options "$0" "$@"
-  exec_command
+# $1 = $0
+# $2 = $@
+# returns: command - the parsed command name
+#          arguments - for SWITCH & OPTION, short name is pefered over long name, for PARAM, it the value name
+#          printed_help - if help was printed
+# pesets:  continue_after_showing_help - to not exit after showing help
+parse_args() {
+    # process first argument
+    _cmd_current_name=${1##*/} # get filename
+    _cmd_current_name=${_cmd_current_name%".sh"} # remove extension
+    _cmd_commands_dir="${1%/*}/${_cmd_current_name}_cmds" # get commands directory
+    shift
+    
+    # extract metatags from header
+    _cmd_metatag_header "$0"
+    _cmd_metatags="$_cmd_header"
+
+    command=""
+    _cmd_command_path=""
+    _cmd_command_args=""
+
+    # show help if there are subcommands and no arguments
+    if [ -d "$_cmd_commands_dir" ] && [ "$#" -eq 0 ]; then
+        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_commands_dir"
+        printed_help=1
+        if [ -z "$continue_after_showing_help" ]; then
+            exit 0
+        fi
+    fi
+
+    # parse arguments - loop
+    _cmd_param_order_count=0
+    _cmd_stop_options=""
+    _cmd_grouped_switches=""
+    while [ "$#" -gt 0 ]; do
+
+        # get next argument
+        if [ -z "$_cmd_grouped_switches" ]; then
+            # extract next argument
+            _cmd_arg="$1"
+            shift
+            # categorize argument type
+            if [ "$_cmd_arg" = "--" ]; then
+                _cmd_stop_options=1
+                continue
+            fi
+            _cmd_arg_type=""
+            _cmd_long_dash="" # used for easy printing of -- or -
+            if [ -z "$_cmd_stop_options" ]; then # no stop options
+                if [ "${_cmd_arg%${_cmd_arg#??}}" = "--" ]; then # has two dashes
+                    _cmd_arg_type="long"
+                    _cmd_long_dash="-"
+                elif [ "${_cmd_arg%${_cmd_arg#?}}" = "-" ]; then # has one dash
+                    _cmd_arg_type="short"
+                    if [ "${#_cmd_arg}" -gt 2 ]; then # is a grouped switch
+                        _cmd_grouped_switches="${_cmd_arg#?}" # remove first dash
+                        _cmd_arg="${_cmd_grouped_switches%${_cmd_grouped_switches#?}}" # get first switch
+                        _cmd_grouped_switches="${_cmd_grouped_switches#?}" # remove switch from group
+                    fi
+                fi
+            fi
+        else
+            # extract from grouped switches
+            _cmd_arg="${_cmd_grouped_switches%${_cmd_grouped_switches#?}}" # get next switch
+            _cmd_grouped_switches="${_cmd_grouped_switches#?}" # remove switch from group
+        fi
+
+        # switch & option
+        if [ -n "$_cmd_arg_type" ]; then
+            # strip dashes
+            _cmd_arg="${_cmd_arg#-}"
+            _cmd_arg="${_cmd_arg#-}"
+            # match switch & option
+            _cmd_arg_found=""
+            _cmd_parse_metatag "$_cmd_metatags"
+            while _cmd_parse_metatag; do
+                case "$_cmd_tag" in
+                    "@SWITCH")
+                        if [ $_cmd_arg_type = "short" -a "$_cmd_arg" = "$_cmd_short" ] || [ $_cmd_arg_type = "long" -a "$_cmd_arg" = "$_cmd_long" ]; then
+                            eval "${_cmd_short:-$_cmd_long}=1" # set variable
+                            _cmd_arg_found=1
+                            break # completed processing this argument
+                        fi
+                    ;;
+                    "@OPTION")
+                        if [ $_cmd_arg_type = "short" -a "$_cmd_arg" = "$_cmd_short" ] || [ $_cmd_arg_type = "long" -a "$_cmd_arg" = "$_cmd_long" ]; then
+                            # validate has value
+                            if [ -z "$1" ] || case "$1" in -*) true ;; *) false ;; esac; then
+                                print_error "Option '-${_cmd_long_dash}${_cmd_arg}' is missing the value <$_cmd_value>."
+                                [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                                exit 1
+                            fi
+                            eval "${_cmd_short:-$_cmd_long}=$1" # set variable
+                            shift # remove value
+                            _cmd_arg_found=1
+                            break # completed processing this argument
+                        fi
+                    ;;
+                esac
+            done
+            # argument not found
+            if [ -z "$_cmd_arg_found" ]; then
+                # show version (--version)
+                if [ "$_cmd_arg" = "version" ] && _cmd_arg_type="long"; then
+                     _cmd_parse_metatag "$_cmd_metatags" "@VERSION"
+                    if _cmd_parse_metatag; then
+                        printf -- "$_cmd_desc\n"
+                        exit 0
+                    fi
+                fi
+                # show help (-h, --help)
+                if [ "$_cmd_arg" = "h" ] || [ "$_cmd_arg" = "help" ]; then
+                    if [ -z "$_cmd_command_path" ]; then
+                        # no command found yet - show help for this command
+                        _cmd_print_help "$_cmd_metatags" "$_cmd_current_name" "$_cmd_commands_dir"
+                        printed_help=1
+                        if [ -z "$continue_after_showing_help" ]; then
+                            exit 0
+                        fi
+                    else
+                        # command already found - pass --help to subcommand
+                        _cmd_command_args="${_cmd_command_args}${_cmd_command_args:+$_cmd_nl}--help"
+                    fi
+                # unknown argument
+                else
+                    print_error "Unknown option '-${_cmd_long_dash}${_cmd_arg}'."
+                    [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                    exit 1
+                fi
+            fi
+
+        # command & param & stdin
+        else
+            # match command
+            if [ -d "$_cmd_commands_dir" ] && [ -z "$_cmd_command_path" ]; then
+                _cmd_candidate_path="$_cmd_commands_dir/${_cmd_arg}.sh"
+                if [ -f "$_cmd_candidate_path" ]; then
+                    # command found
+                    command="$_cmd_arg"
+                    _cmd_command_path="$_cmd_candidate_path"
+                    # collect remaining arguments - swap out spaces for newlines
+                    _cmd_command_args=""
+                    while [ "$#" -gt 0 ]; do
+                        _cmd_command_args="${_cmd_command_args}${_cmd_command_args:+$_cmd_nl}$1"
+                        shift
+                    done
+                    break # completed processing this argument
+                fi
+                # unknown command - only if it has no params or stdin
+                _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
+                if ! _cmd_parse_metatag; then # has no params
+                    _cmd_parse_metatag "$_cmd_metatags" "@STDIN"
+                    if ! _cmd_parse_metatag || [ -z "$_cmd_value" ]; then # has no stdin with value
+                        print_error "'$_cmd_arg' is not a valid $_cmd_current_name command."
+                        [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                        exit 1
+                    fi
+                fi
+            fi  
+            # match param - if not a command it must be a param or stdin
+            _cmd_param_order_index=0
+            _cmd_param_order_count=$((_cmd_param_order_count + 1))
+            _cmd_parse_metatag "$_cmd_metatags"
+            # get the next param or stdin in order
+            while [ "$_cmd_param_order_index" -lt "$_cmd_param_order_count" ]; do
+                _cmd_parse_metatag || break
+                case "$_cmd_tag" in
+                    "@PARAM"|"@STDIN")
+                        [ -n "$_cmd_value" ] && _cmd_param_order_index=$((_cmd_param_order_index + 1))
+                    ;;
+                esac
+            done
+            if [ -n "$_cmd_value" ]; then
+                eval "$_cmd_value=\"\$_cmd_arg\"" # set variable
+            else
+                print_error "Unexpected argument '$_cmd_arg'."
+                [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                exit 1
+            fi
+        fi
+    done
+
+    # required options & params & stdin
+    _cmd_parse_metatag "$_cmd_metatags"
+    while _cmd_parse_metatag; do
+        [ -n "$_cmd_req" ] || continue # not required
+        case "$_cmd_tag" in
+            "@OPTION")
+                _cmd_long_dash2=""
+                [ -z "$_cmd_short" ] && _cmd_long_dash2="-"
+                eval "_cmd_current_val=\"\$${_cmd_short:-$_cmd_long}\"" # get variable from string
+                if [ -z "$_cmd_current_val" ]; then
+                    print_error "Option '-${_cmd_long_dash2}${_cmd_short:-$_cmd_long}' is required."
+                    [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                    exit 1
+                fi
+            ;;
+            "@PARAM")
+                eval "_cmd_current_val=\"\$${_cmd_value}\"" # get variable from string
+                if [ -z "$_cmd_current_val" ]; then
+                    print_error "Parameter '$_cmd_value' is required."
+                    [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                    exit 1
+                fi
+            ;;
+            "@STDIN")
+                if [ -z "$_cmd_stdin" ]; then
+                    if [ -t 0 ]; then # no stdin
+                        if [ -z "_cmd_value" ]; then
+                            print_error "Standard input (< stdin) is required."
+                            [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                            exit 1
+                        else
+                            eval "_cmd_current_val=\"\$${_cmd_value}\"" # get variable from string
+                            if [ -z "$_cmd_current_val" ]; then
+                                print_error "Parameter '$_cmd_value' or standard input (< stdin) is required."
+                                [ -z "$NO_TIP" ] && print_info "use --help for usage"
+                                exit 1
+                            fi
+                        fi
+                    fi
+                fi
+            ;;
+        esac
+    done
+}
+
+
+# $1 = metatag header
+# $2 = current command name
+# $3 = sub commands directory
+_cmd_print_help() {
+    _cmd_metatags="$1"
+    _cmd_current_name="$2"
+    _cmd_commands_dir="$3"
+
+    # print usage
+    printf -- "${TXT_GRAY}Usage:${TXT_DEFAULT}  ${_cmd_current_name}"
+    # switches
+    _cmd_parse_metatag "$_cmd_metatags" "@SWITCH"
+    while _cmd_parse_metatag; do
+        printf -- " ${TXT_GRAY}[%s]${TXT_DEFAULT}" "-${_cmd_short:-"-$_cmd_long"}"
+    done
+    # options
+    _cmd_parse_metatag "$_cmd_metatags" "@OPTION"
+    while _cmd_parse_metatag; do
+        if [ -n "$_cmd_req" ]; then
+            printf -- " ${TXT_RED}%s <%s>${TXT_DEFAULT}" "-${_cmd_short:-"-$_cmd_long"}" "$_cmd_value"
+        else
+            printf -- " ${TXT_GRAY}[%s <%s>]${TXT_DEFAULT}" "-${_cmd_short:-"-$_cmd_long"}" "$_cmd_value"
+        fi
+    done
+    # command
+    if [ -d "$_cmd_commands_dir" ]; then
+        _cmd_parse_metatag "$_cmd_metatags" "@PARAM"
+        if _cmd_parse_metatag; then
+            printf -- " ${TXT_GRAY}[COMMAND]${TXT_DEFAULT}"
+        else
+            printf -- " COMMAND"
+        fi
+    fi
+    # parameters & stdin
+    _cmd_parse_metatag "$_cmd_metatags"
+    while _cmd_parse_metatag; do
+        case "$_cmd_tag" in
+            "@PARAM"|"@STDIN")
+                if [ -n "$_cmd_req" ]; then
+                    printf -- " %s" "$_cmd_value"
+                else
+                    printf -- " ${TXT_GRAY}[%s]${TXT_DEFAULT}" "$_cmd_value"
+                fi
+            ;;
+        esac
+    done
+    # stdin
+    _cmd_parse_metatag "$_cmd_metatags" "@STDIN"
+    if _cmd_parse_metatag; then
+        if [ -n "$_cmd_req" ]; then
+            printf -- " %s" "< stdin"
+        else
+            printf -- " ${TXT_GRAY}[%s]${TXT_DEFAULT}" "< stdin"
+        fi
+    fi
+    printf -- "${TXT_DEFAULT}\n"
+
+    # print description
+    _cmd_parse_metatag "$_cmd_metatags" "@DESC"
+    while _cmd_parse_metatag; do
+        printf -- "\n${TXT_BOLD}${TXT_BLUE}$_cmd_desc${TXT_DEFAULT}\n"
+    done
+
+    # print commands
+    if [ -d "$_cmd_commands_dir" ]; then
+        printf -- "\n${TXT_BOLD}Commands:${TXT_DEFAULT}\n"
+        for _cmd_cmds_file in "$_cmd_commands_dir"/*.sh; do
+            _cmd_metatag_header "$_cmd_cmds_file"
+            _cmd_parse_metatag "$_cmd_header" "@DESC"
+            _cmd_parse_metatag
+            _cmd_cmds_file=${_cmd_cmds_file##*/} # get filename
+            _cmd_cmds_file=${_cmd_cmds_file%".sh"} # remove extension
+            printf -- "  ${TXT_YELLOW}%-23s${TXT_DEFAULT} ${TXT_GRAY}%s${TXT_DEFAULT}\n" "$_cmd_cmds_file" "${_cmd_desc%%"\n"*}"
+        done
+    fi
+
+    # print options
+    _cmd_printed=""
+    _cmd_parse_metatag "$_cmd_metatags"
+    while _cmd_parse_metatag; do
+        case "$_cmd_tag" in
+            "@SWITCH"|"@OPTION"|"@PARAM"|"@STDIN"|"@VERSION")
+                if [ "$_cmd_printed" != "options" ]; then
+                    printf -- "\n${TXT_BOLD}Options:${TXT_DEFAULT}\n"
+                    _cmd_printed="options"
+                fi
+                _cmd_fmt_value=""
+                _cmd_fmt_color=""
+                _cmd_fmt_color_end=""
+                [ "$_cmd_tag" = "@VERSION" ] && _cmd_long="version" # include version as an option
+                [ "$_cmd_tag" = "@VERSION" ] && _cmd_desc="Display the version" # include version destription
+                [ "$_cmd_short" ] && _cmd_fmt_value="-${_cmd_short}" # short
+                [ "$_cmd_long" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value}, " # comma
+                [ "$_cmd_long" ] && _cmd_fmt_value="${_cmd_fmt_value}--${_cmd_long}" # long
+                [ "$_cmd_value" ] && [ "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value} <${_cmd_value}>" # option value
+                [ "$_cmd_value" ] && [ ! "$_cmd_fmt_value" ] && _cmd_fmt_value="${_cmd_fmt_value}${_cmd_value}" # param value
+                [ "$_cmd_value" ] && [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_value="${_cmd_fmt_value}, < stdin" # stdin value + pipe
+                [ ! "$_cmd_value" ] && [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_value="${_cmd_fmt_value}< stdin" # stdin pipe only
+                [ "$_cmd_tag" = "@PARAM" ] && _cmd_fmt_color="${TXT_YELLOW}" && _cmd_fmt_color_end="${TXT_DEFAULT} " # param yellow
+                [ "$_cmd_tag" = "@STDIN" ] && _cmd_fmt_color="${TXT_BLUE}" && _cmd_fmt_color_end="${TXT_DEFAULT} " # stdin blue
+                _cmd_fmt_value="  $_cmd_fmt_value" # indent
+                _cmd_desc="${TXT_GRAY}$_cmd_desc${TXT_DEFAULT}" # gray
+                [ "$_cmd_req" ] && _cmd_desc="$_cmd_desc ${TXT_RED}(REQUIRED)${TXT_DEFAULT}" # required
+                _cmd_print_columns "$_cmd_fmt_value" "$_cmd_desc" 25 "$_cmd_fmt_color" "$_cmd_fmt_color_end" # print
+            ;;
+        esac
+    done
+
+    # print examples
+    _cmd_parse_metatag "$_cmd_metatags" "@EXAMPLE"
+    while _cmd_parse_metatag; do
+        if [ "$_cmd_printed" != "example" ]; then
+            printf -- "\n${TXT_BOLD}${TXT_BOLD}Examples:${TXT_DEFAULT}\n"
+            _cmd_printed="example"
+        fi
+        _cmd_print_columns "" "${TXT_PURPLE}$_cmd_desc${TXT_DEFAULT}" 1
+    done
+}
+
+
+# $1 = Column 1 text (Single line)
+# $2 = Column 2 text (Multi-line)
+# $3 = padding (e.g., 20)
+# $4 = frame start
+# $5 = frame center
+# $6 = frame end
+_cmd_print_columns() {
+    _cmd_col1="$1"
+    _cmd_col2="$2"
+    _cmd_frame_start="$4"
+    _cmd_frame_center="${5:-" "}"
+    _cmd_frame_end="$6"
+    _cmd_fmt_columns="%b%-${3:-25}b%b%b%b\n"
+    
+    while [ -n "$_cmd_col2" ]; do
+        # get line
+        _cmd_line="${_cmd_col2%%"\n"*}"
+        if [ "$_cmd_col2" = "$_cmd_line" ]; then
+            _cmd_col2=""
+        else
+            _cmd_col2="${_cmd_col2#*"\n"}"
+        fi
+        # print
+        printf -- "$_cmd_fmt_columns" "$_cmd_frame_start" "$_cmd_col1" "$_cmd_frame_center" "$_cmd_line" "$_cmd_frame_end"
+        _cmd_col1=""
+    done
+}
+
+
+# Parse a list of metatags into variables
+# $1 = set metatags
+# $2 = filter by tag (optional)
+# Results: _cmd_tag, _cmd_desc, _cmd_short, _cmd_long, _cmd_value, _cmd_req
+_cmd_parse_metatag() {
+    # set the list
+    if [ -n "$1" ]; then
+        _cmd_lines="$1"
+        _cmd_filter="$2"
+        _cmd_param_count=0
+        _cmd_option_count=0
+        return 0
+    fi
+
+    while true; do
+        # reset variables
+        _cmd_tag=""
+        _cmd_desc=""
+        _cmd_short=""
+        _cmd_long=""
+        _cmd_value=""
+        _cmd_req=""
+
+        # no more lines
+        [ -z "$_cmd_lines" ] && return 1
+
+        # get line
+        _cmd_line="${_cmd_lines%%"\n"*}"
+        if [ "$_cmd_lines" = "$_cmd_line" ]; then
+            _cmd_lines=""
+        else
+            _cmd_lines="${_cmd_lines#*"\n"}"
+        fi
+
+        # parse tag
+        _cmd_tag="${_cmd_line%%":"*}" # extract to :
+        _cmd_line="${_cmd_line#*":"}" # strip :
+
+        # parse parameters
+        case "$_cmd_tag" in
+            "@DESC"|"@EXAMPLE"|"@VERSION")
+                # remander is description
+                _cmd_line="${_cmd_line#"${_cmd_line%%[![:space:]]*}"}" # left trim
+                _cmd_desc="${_cmd_line}" 
+            ;;
+            *)
+                # parse parameters
+                _cmd_line="${_cmd_line}," # add comma
+                while [ -n "$_cmd_line" ]; do
+                    _cmd_parm="${_cmd_line%%","*}" # extract to comma
+                    _cmd_line="${_cmd_line#*","}" # strip comma
+                    _cmd_parm="${_cmd_parm#"${_cmd_parm%%[![:space:]]*}"}" # left trim
+                    _cmd_parm="${_cmd_parm%"${_cmd_parm##*[![:space:]]}"}" # right trim
+                    # assingn parameter
+                    case "$_cmd_parm" in
+                        "REQUIRED") _cmd_req=1 ;;   
+                        "--"*) _cmd_long="${_cmd_parm#"--"}" ;;
+                        "-"*) _cmd_short="${_cmd_parm#"-"}" ;;
+                        "<"*) 
+                            _cmd_value="${_cmd_parm#"<"}" 
+                            _cmd_value="${_cmd_value%">"}"
+                        ;;
+                        *)
+                            if [ -n "$_cmd_desc" ]; then
+                                _cmd_desc="$_cmd_desc, $_cmd_parm"
+                            else
+                                _cmd_desc="$_cmd_parm"
+                            fi
+                        ;;
+                    esac
+                done
+            ;;
+        esac
+
+        # parse multi-line description
+        while [ -n "$_cmd_lines" ] && [ "${_cmd_lines#"@"}" = "$_cmd_lines" ]; do
+            # get line
+            _cmd_line="${_cmd_lines%%"\n"*}"
+            if [ "$_cmd_lines" = "$_cmd_line" ]; then
+                _cmd_lines=""
+            else
+                _cmd_lines="${_cmd_lines#*"\n"}"
+            fi
+            # add to description
+            if [ -n "$_cmd_desc" ]; then
+                _cmd_desc="$_cmd_desc\n$_cmd_line"
+            else
+                _cmd_desc="$_cmd_line"
+            fi
+        done
+
+        # add defaults
+        case "$_cmd_tag" in
+            "@SWITCH")
+                _cmd_value=""
+                _cmd_req=""
+            ;;
+            "@OPTION")
+                if [ -z "$_cmd_value" ]; then
+                    _cmd_option_count=$((_cmd_option_count + 1))
+                    _cmd_value="value_$_cmd_option_count"
+                fi
+            ;;
+            "@PARAM")
+                if [ -z "$_cmd_value" ]; then
+                    _cmd_param_count=$((_cmd_param_count + 1))
+                    _cmd_value="param_$_cmd_param_count"
+                fi
+                _cmd_short=""
+                _cmd_long=""
+            ;;
+            "@STDIN")
+                _cmd_short=""
+                _cmd_long=""
+            ;;
+        esac
+
+        # skip invalid tags
+        case "$_cmd_tag" in
+            "@SWITCH"|"@OPTION") 
+                [ -z "$_cmd_short" ] && [ -z "$_cmd_long" ] && continue # missing short or long
+                [ "${_cmd_short#* }" != "$_cmd_short" ] && continue # short has spaces
+                [ "${_cmd_long#* }" != "$_cmd_long" ] && continue # long has spaces
+                [ -n "$_cmd_short" ] && [ ! "${#_cmd_short}" -eq 1 ] && continue # short must be 1 char
+                [ -n "$_cmd_long" ] && [ ! "${#_cmd_long}" -gt 1 ] && continue # long must be more than 1 char
+            ;;
+            "@PARAM"|"@STDIN")
+                [ "${_cmd_value#* }" != "$_cmd_value" ] && continue # value has spaces
+            ;;
+            "@DESC"|"@EXAMPLE")
+                [ -z "$_cmd_desc" ] && continue # missing description
+            ;;
+        esac
+
+        # return if matching filter
+        if [ -z "$_cmd_filter" ] || [ "$_cmd_tag" = "$_cmd_filter" ]; then
+            break
+        fi
+    done
+}
+
+
+# Extract metatags from the header
+# $1 = Path to the script file
+# Results: _cmd_header
+_cmd_metatag_header() {
+    _cmd_header=""
+    _cmd_is_tag=""
+    while read -r _cmd_line; do
+        _cmd_line="${_cmd_line#"${_cmd_line%%[![:space:]]*}"}" # left trim
+        _cmd_line="${_cmd_line%"${_cmd_line##*[![:space:]]}"}" # right trim
+        # keep metatag lines
+        case "$_cmd_line" in
+            "#"*) 
+                _cmd_line="${_cmd_line#'#'}" # strip #
+                _cmd_line="${_cmd_line#"${_cmd_line%%[![:space:]]*}"}" # left trim
+                # check if this is a metatag line
+                case "$_cmd_line" in
+                    @*) 
+                        # add line
+                        if [ -z "$_cmd_header" ]; then
+                            _cmd_header="$_cmd_line"
+                        else
+                            _cmd_header="$_cmd_header\n$_cmd_line"
+                        fi
+                        _cmd_is_tag=1
+                    ;;
+                    *)
+                        if [ -n "$_cmd_is_tag" ]; then
+                             # add line
+                            _cmd_header="$_cmd_header\n$_cmd_line"
+                        fi
+                    ;;
+                esac
+            ;;
+            "") 
+                _cmd_is_tag=""
+                continue
+            ;;
+            *) break ;;
+        esac
+    done < "$1"
 }

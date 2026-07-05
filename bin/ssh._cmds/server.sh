@@ -1,7 +1,7 @@
 # @DESC: Toggle a server on or off (termux only)
 
 . $DOTFILES/common.sh
-parse_options "$0" "$@"
+parse_args "$0" "$@"
 
 get_system_info
 
