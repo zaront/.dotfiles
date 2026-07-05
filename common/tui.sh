@@ -86,7 +86,7 @@ update_colors() {
         TXT_OK="${TXT_BOLD}[OK]${TXT_DEFAULT}"
         TXT_READY="${TXT_BOLD}${TXT_YELLOW}[!]${TXT_DEFAULT}"
         TXT_ATTENTION="${TXT_BOLD}${TXT_RED}[!]${TXT_DEFAULT}"
-        TXT_BULLET="*"
+        TXT_BULLET="-"
     fi
 }
 update_colors
@@ -99,7 +99,7 @@ print_success() {
     printf -- "${TXT_SUCCESS} ${TXT_GREEN}$1${TXT_DEFAULT}\n"
 }
 print_warning() {
-    printf -- "${TXT_WARNING} ${TXT_YELLOW}$1${TXT_DEFAULT}\n"
+    printf -- "${TXT_WARNING}  ${TXT_YELLOW}$1${TXT_DEFAULT}\n"
 }
 print_info() {
     printf -- "${TXT_BLUE}$1${TXT_DEFAULT}\n"

@@ -89,7 +89,11 @@ set_value() {
 # Check if a flag file exists
 # $1: flag file name
 get_flag() {
-    [ -f "_cfg_config_dir/${1}.flag" ]
+    if [ -f "$_cfg_config_dir/${1}.flag" ]; then
+        return 0  # Success
+    else
+        return 1  # Failure
+    fi
 }
 
 # Create a flag file and its parent directories if they don't exist
@@ -106,62 +110,37 @@ unset_flag() {
 
 
 
-_cfg_s_file="$DOTFILES/config/startup.sh"
+_cfg_s_dir="$DOTFILES/config/startup.d"
 
+# check if a startup script exists
+# $1: key
 get_startup() {
-    _cfg_s_key="$1"
-    # Fall back to default path if the optional third argument isn't provided
-    _cfg_s_target="${2:-$_cfg_s_file}"
-    [ -f "$_cfg_s_target" ] || return 1
-    
-    # Check for the presence of the unique key marker in the file footprint
-    awk -v marker="# >>> START: ${_cfg_s_key} >>>" '
-        { file_content = file_content $0 "\n" }
-        END { exit (index(file_content, marker) ? 0 : 1) }
-    ' "$_cfg_s_target"
+    _cfg_s_file="${_cfg_s_dir}/${DOTFILES_CMD##*/}/${1}.sh"
+    if [ -f "$_cfg_s_file" ]; then
+        return 0  # Success
+    else
+        return 1  # Failure
+    fi
 }
 
+# $1: key
+# $2: startup script block
 set_startup() {
-    _cfg_s_key="$1"
+    _cfg_s_file="${_cfg_s_dir}/${DOTFILES_CMD##*/}/${1}.sh"
     _cfg_s_block="$2"
-    _cfg_s_target="${3:-$_cfg_s_file}"
 
-    # validate
-    _cfg_s_dir="${_cfg_s_target%/*}"
-    mkdir -p "$_cfg_s_dir"
-    touch "$_cfg_s_target"
-
-    # Automatically drop the old block matching this key to allow for updates
-    unset_startup "$_cfg_s_key" "$_cfg_s_target"
-
-    # add the startup script wrapped in structured comment blocks with 2 trailing blank lines
-    printf '# >>> START: %s >>>\n%s\n# <<< END: %s <<<\n\n\n' "$_cfg_s_key" "$_cfg_s_block" "$_cfg_s_key" >> "$_cfg_s_target"
+    # ensure directory
+    mkdir -p "${_cfg_s_file%/*}"
+    # create or replace file
+    printf '%s\n' "$_cfg_s_block" > "$_cfg_s_file"
 }
 
+# $1: key
 unset_startup() {
-    _cfg_s_key="$1"
-    _cfg_s_target="${2:-$_cfg_s_file}"
+    _cfg_s_file="${_cfg_s_dir}/${DOTFILES_CMD##*/}/${1}.sh"
 
-    # validate
-    [ -f "$_cfg_s_target" ] || return 0
-    
     # remove the startup script
-    _cfg_s_tmp="${_cfg_s_target}.tmp.$$.$(date +%s)"
-    awk -v key="$_cfg_s_key" '
-        # Read the entire file into a single string variable
-        { file_content = file_content $0 "\n" }
-        
-        END {
-            # Target the block and the exact 2 trailing blank lines (\n\n) following it
-            target = "# >>> START: " key " >>>\n.*\n# <<< END: " key " <<<\n\n\n"
-            
-            # Delete the matching chunk from the text string
-            gsub(target, "", file_content)
-            
-            # Output the remaining content
-            printf "%s", file_content
-        }
-    ' "$_cfg_s_target" > "$_cfg_s_tmp" && mv "$_cfg_s_tmp" "$_cfg_s_target"
+    rm -f "$_cmd_target_file"
 }
 
 get_template() {

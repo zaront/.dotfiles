@@ -1,14 +1,17 @@
 # @DESC: Toggle auto-sourcing ROS2 & workspaces
-# @SWITCH: r,,Remove rossource auto-source from your shell
+#
+# run it once to enable auto-sourcing in each new shell
+# run it again to disable auto-sourcing
+# @SWITCH: -r, Remove rossource auto-source from your shell
 
 . $DOTFILES/common.sh
 
 parse_args "$0" "$@"
 
-if [ "$r" = true ]; then
+if [ -n "$r" ]; then
     unset_startup "auto-source"
     unset_flag "auto-source"
-    echo "Removed rossource & auto-source from your shell"
+    print_success "Removed rossource & auto-source from your shell"
     exit 0
 fi
 
@@ -21,9 +24,9 @@ fi
 # toggle auto-source
 if get_flag "auto-source"; then
     unset_flag "auto-source"
-    echo "ROS2 auto-source DISABLED."
+    print_warning "auto-source DISABLED."
 else
     set_flag "auto-source"
-    echo "ROS2 auto-source ENABLED. ROS 2 will automatically source in every new shell."
+    print_success "auto-source ENABLED. ROS 2 will automatically source in every new shell."
 fi
-echo "  *Type 'rossource' to source manually & at the root of a workspace to source it"
+print_info "  ${TXT_BULLET} Type 'rossource' to source manually \n     will source a workspace if within its folder"

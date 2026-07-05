@@ -56,14 +56,14 @@ fi
 # if no .profile exists, create one
 if [ ! -f "$source_cmd" ]; then
     printf "\n$source_cmd\n" > "$HOME/.profile"
-    tip=" * [REMINDER] use 'sh -l' to auto source .profile at startup"
+    tip=" - [REMINDER] use 'sh -l' to auto source .profile at startup"
 fi
 
 
 # COMPLETE
 echo "Dotfiles installed"
-echo " * start a new shell"
-echo " * then type 'dotfiles' to get started"
+echo " - start a new shell"
+echo " - then type 'dotfiles' to get started"
 if [ -n "$tip" ]; then
     echo "$tip"
 fi

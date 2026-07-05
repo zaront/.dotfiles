@@ -12,7 +12,7 @@ if [ -n "$BASH_VERSION" ]; then
 fi
 
 
-# source config startup - if it exists
-if [ -f "$DOTFILES/config/startup.sh" ]; then
-    . "$DOTFILES/config/startup.sh"
+# source all config startup.d files
+if [ -d "$DOTFILES/config/startup.d" ]; then
+    eval "$(find "$DOTFILES/config/startup.d" -type f -name "*.sh" -exec printf '. "%s"\n' {} +)" # executs all startup scripts
 fi
