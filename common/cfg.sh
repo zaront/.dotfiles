@@ -7,8 +7,7 @@
 [ -n "$_cfg_sourced" ] && return 0
 _cfg_sourced=1
 
-
-_cfg_config_dir="$DOTFILES/config/$(basename "$DOTFILES_CMD")"
+_cfg_config_dir="$DOTFILES/config/${DOTFILES_CMD##*/}" 
 
 _cfg_parse_key() {
     _cfg_key="$1"
@@ -23,7 +22,7 @@ EOF
 
 
 # Usage:  get_value "ros/default/distro"
-# the key format is: [filename]/[section]/[key]
+# $1: key  -format: [filename]/[section]/[key]
 get_value() {
     _cfg_parse_key "$1" "$2"
 
@@ -44,7 +43,8 @@ get_value() {
 
 
 # Usage:  set_value "ros/default/distro" "humble"
-# the key format is: [filename]/[section]/[key]
+# $1: key  -format: [filename]/[section]/[key]
+# $2: value
 set_value() {
     _cfg_parse_key "$1" "$2"
 
@@ -87,16 +87,19 @@ set_value() {
 
 
 # Check if a flag file exists
+# $1: flag file name
 get_flag() {
     [ -f "_cfg_config_dir/${1}.flag" ]
 }
 
 # Create a flag file and its parent directories if they don't exist
+# $1: flag file name
 set_flag() {
     mkdir -p "$_cfg_config_dir"
     touch "$_cfg_config_dir/${1}.flag"
 }
 
+# $1: flag file name
 unset_flag() {
     rm -f "$_cfg_config_dir/${1}.flag"
 }
@@ -162,7 +165,7 @@ unset_startup() {
 }
 
 get_template() {
-    _cfg_s_src_file="$(dirname "$0")/$1.template"
+    _cfg_s_src_file="${0%/*}/$1.template" # template path
     [ -f "$_cfg_s_src_file" ] || return 1
     
     # Read to global variable
