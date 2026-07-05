@@ -379,6 +379,10 @@ _cmd_print_help() {
     if [ -d "$_cmd_commands_dir" ]; then
         printf -- "\n${TXT_BOLD}Commands:${TXT_DEFAULT}\n"
         for _cmd_cmds_file in "$_cmd_commands_dir"/*.sh; do
+            if [ ! -e "$_cmd_cmds_file" ]; then
+                printf -- "  ${TXT_GRAY}%s${TXT_DEFAULT}\n" "<no commands found>"
+                continue
+            fi
             _cmd_metatag_header "$_cmd_cmds_file"
             _cmd_parse_metatag "$_cmd_header" "@DESC"
             _cmd_parse_metatag
