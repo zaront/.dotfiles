@@ -107,7 +107,9 @@ print_info() {
 }
 
 
-# $1 = title, $2... = options
+# $1 = title
+# $2... = options
+# Returns: REPLY = the name of the selected option
 prompt_choice() {
     _title="$1"; shift
     printf "${TXT_YELLOW}=== %s ===${TXT_DEFAULT}\n" "$_title"
@@ -177,8 +179,8 @@ _tui_get_key() {
 
 # $1 = title
 # $2... = options
-# Returns: REPLY = the index of the selected option
-prompt_select() {
+# Returns: REPLY = the name of the selected option
+prompt_menu() {
     _tui_title="$1"; shift
     _tui_total_opts=$#
     _tui_current_sel=1

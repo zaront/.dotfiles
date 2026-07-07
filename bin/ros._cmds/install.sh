@@ -5,13 +5,12 @@ parse_args "$0" "$@"
 
 
 # select ROS 2 distro
-prompt_choice "ROS 2 Distro" "humble"
-case "$REPLY" in
-    1) distro="humble";;
-esac
+prompt_menu "Select a ROS Distro" "humble"
+distro="$REPLY"
+
 # verify its not already installed
 if [ -d "/opt/ros/$distro" ]; then
-    echo "ROS 2 $distro is already installed at /opt/ros/$distro"
+    print_error "$distro is already installed at /opt/ros/$distro"
     exit 1
 fi
 
@@ -37,26 +36,27 @@ if [ "$OS" != "ubuntu" ]; then
             # add an alias to .bashrc
             echo "alias ubuntu='proot-distro login ubuntu'" >> $HOME/.bashrc
             echo "proot and ubuntu are installed"
-            echo "  In a new shell type 'ubuntu' to login"
-            echo "  Then reinstall .dotfiles and rerun 'ros. install'"
+            print_info "  In a new shell type 'ubuntu' to login"
+            print_info "  Then reinstall .dotfiles and rerun 'ros. install'"
         fi
     fi
     exit 1
 fi
 if [ "$VERSION" != "$required_version" ]; then
-    echo "Your version of Ubuntu is $VERSION"
-    echo "ROS 2 $distro is only supported on Ubuntu:${required_version}"
+    print_info "Your version of Ubuntu is $VERSION"
+    print_error "ROS 2 $distro is only supported on Ubuntu:${required_version}"
     exit 1
 fi
 
 
 install_humble() {
-    echo "Installing ROS 2 Humble"
+    exit
 }
 
 
 
 # start install
+print_info "Installing ROS $distro..."
 case "$distro" in
     humble) install_humble;;
 esac
