@@ -33,7 +33,7 @@ if [ "$OS" != "ubuntu" ]; then
         if [ "$REPLY" = "y" ]; then
             #pkg install proot-distro -y
             #proot-distro install ubuntu:${required_version}
-            set_setup "proot-ubuntu" "alias ubuntu='proot-distro login ubuntu'" # create alias
+            set_startup "proot-ubuntu" "alias ubuntu='proot-distro login ubuntu'" # create alias
             printf -- "\n. $DOTFILES/startup.sh\n" >> $PREFIX/var/lib/proot-distro/containers/ubuntu/rootfs/root/.bashrc # add dotfiles
             print_success "proot and ubuntu are installed"
             print_info "  In a new shell type 'ubuntu' to login"
