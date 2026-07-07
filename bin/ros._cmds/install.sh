@@ -26,12 +26,12 @@ if [ "$OS" != "ubuntu" ]; then
     if [ "$ENVIRONMENT" = "termux" ]; then
         echo "Your on termux"
         echo "You can install Ubuntu on Termux with proot-distro"
-        echo "  pkg install proot-distro"
-        echo "  proot-distro install ubuntu:${required_version}"
+        print_info "  pkg install proot-distro"
+        print_info "  proot-distro install ubuntu:${required_version}"
         echo ""
         prompt_confirm "Install Ubuntu on Termux?"
         if [ "$REPLY" = "y" ]; then
-            pkg install proot-distro
+            pkg install proot-distro -y
             proot-distro install ubuntu:${required_version}
             # add an alias to .bashrc
             echo "alias ubuntu='proot-distro login ubuntu'" >> $HOME/.bashrc
