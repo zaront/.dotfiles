@@ -31,11 +31,11 @@ if [ "$OS" != "ubuntu" ]; then
         echo ""
         prompt_confirm "Install Ubuntu on Termux?"
         if [ "$REPLY" = "y" ]; then
-            pkg install proot-distro -y
-            proot-distro install ubuntu:${required_version}
-            # add an alias to .bashrc
-            echo "alias ubuntu='proot-distro login ubuntu'" >> $HOME/.bashrc
-            echo "proot and ubuntu are installed"
+            #pkg install proot-distro -y
+            #proot-distro install ubuntu:${required_version}
+            set_setup "proot-ubuntu" "alias ubuntu='proot-distro login ubuntu'" # create alias
+            printf -- "\n. $DOTFILES/startup.sh\n" >> $PREFIX/var/lib/proot-distro/containers/ubuntu/rootfs/root/.bashrc # add dotfiles
+            print_success "proot and ubuntu are installed"
             print_info "  In a new shell type 'ubuntu' to login"
             print_info "  Then reinstall .dotfiles and rerun 'ros. install'"
         fi

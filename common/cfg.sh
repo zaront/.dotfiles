@@ -124,7 +124,7 @@ get_startup() {
 }
 
 # $1: key
-# $2: startup script block
+# $2|<stdin: startup script block
 set_startup() {
     _cfg_s_file="${_cfg_s_dir}/${DOTFILES_CMD##*/}/${1}.sh"
     _cfg_s_block="$2"
@@ -132,7 +132,11 @@ set_startup() {
     # ensure directory
     mkdir -p "${_cfg_s_file%/*}"
     # create or replace file
-    printf '%s\n' "$_cfg_s_block" > "$_cfg_s_file"
+    if [ ! -t 0 ]; then # if stdin is piped
+        cat > "$_cfg_s_file"
+    else
+        printf '%s\n' "$_cfg_s_block" > "$_cfg_s_file"
+    fi
 }
 
 # $1: key
@@ -140,8 +144,9 @@ unset_startup() {
     _cfg_s_file="${_cfg_s_dir}/${DOTFILES_CMD##*/}/${1}.sh"
 
     # remove the startup script
-    rm -f "$_cmd_target_file"
+    rm -f "$_cfg_s_file"
 }
+
 
 get_template() {
     _cfg_s_src_file="${0%/*}/$1.template" # template path
