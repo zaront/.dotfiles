@@ -29,24 +29,24 @@ if [ "$ENVIRONMENT" = "termux" ]; then
 
     if ps -A -o comm= | grep -x "sshd" > /dev/null 2>&1; then
         # shodown ssh server
-        echo "shutdown ssh server"
+        print_warning "shutdown ssh server"
         pkill sshd
         termux-wake-unlock
     else
         # start ssh server
         ip=$(termux-wifi-connectioninfo | grep -oP '"ip":\s*"\K[^"]+')
         user=$(whoami)
-        echo "server on - run again to turn off."
-        echo "Note: this will run in the background even when the app is quit."
+        print_success "server on - run again to turn off."
+        print_info "Note: this will run in the background even when the app is quit."
         echo "user: $user"
         echo "host: $ip"
         echo "port: 8022"
-        echo "to connect run 'ssh $user@$ip -p 8022' from another client"
+        print_info "to connect run 'ssh $user@$ip -p 8022' from another client"
         sshd
         termux-wake-lock
     fi
     exit 0
 fi
 
-echo "this only runs on termux"
+print_error "this only runs on termux"
 exit 1

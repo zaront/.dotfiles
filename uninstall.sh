@@ -2,7 +2,7 @@
 
 #verify $DOTFILES is set
 if [ -z "$DOTFILES" ]; then
-    echo "[ERROR] DOTFILES environment variable is not set"
+    echo "${TXT_ERROR}${TXT_RED} Could not uninstall. DOTFILES environment variable is not set${TXT_DEFAULT}"
     exit 1
 fi
 
@@ -21,8 +21,8 @@ fi
 
 
 # REMOVE DOTFILES
-#rm -rf "$DOTFILES"
+rm -rf "$DOTFILES"
 
 
 # COMPLETE
-echo "Dotfiles have been uninstalled"
+echo "${TXT_SUCCESS}${TXT_GREEN} Dotfiles have been uninstalled${TXT_DEFAULT}"
