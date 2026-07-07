@@ -34,7 +34,7 @@ if [ "$OS" != "ubuntu" ]; then
             #pkg install proot-distro -y
             #proot-distro install ubuntu:${required_version}
             set_startup "proot-ubuntu" "alias ubuntu='proot-distro login ubuntu'" # create alias
-            printf -- "\n. \"$DOTFILES/startup.sh\" "$DOTFILES\"\n" >> $PREFIX/var/lib/proot-distro/containers/ubuntu/rootfs/root/.bashrc # add dotfiles
+            printf -- "\n. \"$DOTFILES/startup.sh\" \"$DOTFILES\"\n" >> $PREFIX/var/lib/proot-distro/containers/ubuntu/rootfs/root/.bashrc # add dotfiles
             print_success "proot and ubuntu are installed"
             print_info "  In a new shell type 'ubuntu' to login"
             print_info "  Then reinstall .dotfiles and rerun 'ros. install'"
