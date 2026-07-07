@@ -17,8 +17,8 @@ get_system_info() {
         [ -f /proc/version ] && cat /proc/version
     )
     case "$_sys_info" in
-        *WSL2*|*microsoft*) ENVIRONMENT="wsl2" ;;
         *termux*|*Android*|*android*) ENVIRONMENT="termux" ;;
+        *WSL2*|*microsoft*) ENVIRONMENT="wsl2" ;;
         *) ENVIRONMENT="metal" ;;
     esac
     case "$_sys_info" in
